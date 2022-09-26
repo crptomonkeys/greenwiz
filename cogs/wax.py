@@ -209,12 +209,12 @@ class Wax(MetaCog):
             return await ctx.send(
                 f"Here's your {len(result_list)} results:\n {to_send}"
             )
-        with open(f"filtered_{file.filename}", "w+", encoding="utf-8") as f:
+        with open(f"res/tmp/filtered_{file.filename}", "w+", encoding="utf-8") as f:
             f.write(to_send)
         num_removed = len(i_list) - len(result_list)
         await ctx.send(
             f"{num_removed} results removed. Here's your {len(result_list)} results:",
-            file=discord.File(f"filtered_{file.filename}"),
+            file=discord.File(f"res/tmp/filtered_{file.filename}"),
         )
 
     @commands.command(
