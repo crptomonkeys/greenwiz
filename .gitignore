@@ -1,0 +1,12 @@
+/logs/
+/res/tmp/
+/venv/
+/vbotenv/
+/venv/
+/.idea/
+*.pyc
+settings_priv.py
+.pylintrc
+token.json
+token.pickle
+credentials.json
