@@ -50,7 +50,7 @@ class Basics(MetaCog):
                     )
 
     # Commands
-    @commands.command(name="ping", aliases=["plonk"], description="Pong!")
+    @commands.hybrid_command(name="ping", aliases=["plonk"], description="Pong!")
     @commands.check(scope())
     async def ping(self, ctx):
         """Returns the ping to the bot"""
@@ -63,7 +63,7 @@ class Basics(MetaCog):
         )
 
     # Send you a reminder DM with a custom message in a custom amount of time
-    @commands.command(
+    @commands.hybrid_command(
         name="remind",
         aliases=["rem", "re", "r", "remindme", "tellme", "timer"],
         description="Send reminders!",

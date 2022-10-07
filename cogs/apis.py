@@ -9,7 +9,7 @@ from utils.util import scope, epoch, today
 class APIs(MetaCog):
 
     # Commands
-    @commands.command(
+    @commands.hybrid_command(
         name="astros", description="Lists all the astronauts currently in space"
     )
     @commands.check(scope())
@@ -31,7 +31,7 @@ class APIs(MetaCog):
         await ctx.send(content=None, embed=embed)
         self.log(f"Astros command used by {ctx.author} at {epoch()}.", self.bot.cmd)
 
-    @commands.command(
+    @commands.hybrid_command(
         name="holidays", description="Gets the worldwide holidays for today."
     )
     @commands.check(scope())
