@@ -85,6 +85,17 @@ cards = [
     "banano sunday",
     "the white wizard",
     "cupid monkey",
+    "runner monkey",
+    "the match maker",
+    "the connector",
+    "4th banniversary",
+    "hngkey",
+    "next gen monkey",
+    "yellow paper printer",
+    "jungle gym",
+    "the black wizard",
+    "the banslinger",
+    "the jungle",
 ]
 
 ops = {"+": operator.add, "-": operator.sub, "*": operator.mul, "/": operator.truediv}
@@ -99,7 +110,10 @@ def m_n(m: str) -> int:
 
 def n_m(n: int) -> str:
     """Converts a number to its corresponding card."""
-    return cards[max(n - 1, 0)].upper()
+    try:
+        return cards[max(n - 1, 0)].upper()
+    except IndexError as e:
+        raise IndexError(f"{n} is out of range {len(cards)} (len cards)") from e
 
 
 def n_m_op(n: Union[int, str]) -> str:
