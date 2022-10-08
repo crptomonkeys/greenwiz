@@ -10,7 +10,7 @@ from utils.util import utcnow, load_words
 from utils.exceptions import InvalidInput
 from utils.meta_cog import MetaCog
 from utils.util import scope
-from utils.wax_addresses import async_get_special_wax_address_list
+from wax_chain.wax_addresses import async_get_special_wax_address_list
 from wax_chain.wax_util import get_card_dict
 
 

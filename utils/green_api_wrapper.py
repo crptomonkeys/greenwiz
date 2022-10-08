@@ -24,7 +24,7 @@ class GreenApi:
         self.limit = 1000
         self.server = server
         self.url_base = f"http://{self.server}"
-        self.cached_blacklist = dict()
+        self.cached_blacklist = set()
         self.cache_updated = 0
 
     async def all_miners_for_cycle(self, cycle: int = None) -> list:

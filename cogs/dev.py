@@ -389,8 +389,11 @@ class Dev(MetaCog):
                 synced = await ctx.bot.tree.sync(guild=ctx.guild)
             elif spec == "^":
                 ctx.bot.tree.clear_commands(guild=ctx.guild)
-                await ctx.bot.tree.sync(guild=ctx.guild)
+                synced = await ctx.bot.tree.sync(guild=ctx.guild)
                 synced = []
+            elif spec in ["^*", "*^"]:
+                ctx.bot.tree.clear_commands(guild=None)
+                synced = await ctx.bot.tree.sync()
             else:
                 synced = await ctx.bot.tree.sync()
             await ctx.send(

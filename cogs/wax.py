@@ -53,6 +53,10 @@ from wax_chain.wax_util import (
     get_fair_price_for_card,
 )
 from wax_chain.link_deletion import delete_old_links
+from wax_chain.wax_addresses import (
+    is_valid_wax_address,
+    async_get_special_wax_address_list,
+)
 
 
 class EmptyClass:
@@ -154,57 +158,61 @@ class Wax(MetaCog):
     )
     @commands.check(nifty())
     @commands.check(scope())
-    async def filter(self, ctx: commands.Context, *, provided=None):
+    async def filter(self, ctx: commands.Context, *, provided: str = None):
         """
         Remove all blacklisted addresses from the provided txt file or in-line list.
-        File should be txt and have one address per line.
+        File should be txt and have one address per line OR you can add a single-character deliniator to the command (such as , if you want to do a csv).
         If you send addresses in the command, they should be separated by single spaces with no comas.
         If you request addresses inline, it will return addresses inline. If you request addresses with a file,
         it will return a file.
         """
         return_inline = False
         file = None
-        deliniator = "\n"
+        deliniator = r"\n"
         if not ctx.message.attachments or len(ctx.message.attachments) < 1:
             if provided is None:
                 return await ctx.send(
                     "No addresses provided. Please either attach a .txt list or put a list of "
                     "addresses in this command."
                 )
-            await ctx.send(
-                "No file found. Assuming your message is your list, separated by spaces."
-            )
+            await ctx.send("No file found. Assuming your message is your list.")
             return_inline = True
             i_list = list(
                 set(
                     [
                         address.lower().replace(" ", "")
-                        for address in provided.split("\n")
+                        for address in provided.split(deliniator)
                     ]
                 )
             )
         else:
             if provided and "csv" in provided:
                 deliniator = ","
+            elif provided and len(provided) == 1:
+                # Provided is a single character deliniator
+                deliniator = provided
             file = ctx.message.attachments[0]
-            if file.filename[-4:] != ".txt":
+            if file.filename[-4:] not in [".txt", ".csv"]:
                 return await ctx.send(
-                    "Please provide a .txt file, I can't read that one."
+                    "Please provide a .txt or .csv file, I can't read that one."
                 )
 
             provided = str(await file.read())[2:-1]
+            print(provided)
             i_list = list(
-                set(
-                    [
-                        i.lower().replace(" ", "")
-                        for i in provided.replace("\\r", "").split("\\n")
-                        if len(i.replace(" ", "")) > 0
-                    ]
-                )
+                set([i.lower() for i in provided.replace("\\r", "").split(deliniator)])
             )
-        blacklist = await self.bot.green_api.get_blacklist()
-        result_list = [i for i in i_list if i not in blacklist]
-        to_send = deliniator.join(result_list)
+        print(i_list)
+        blacklist = set(await self.bot.green_api.get_blacklist())
+        special_addresses = set(await async_get_special_wax_address_list(self.session))
+        result_list = [
+            i
+            for i in i_list
+            if i not in blacklist
+            and is_valid_wax_address(i, valid_specials=special_addresses)
+        ]
+        print(result_list)
+        to_send = "\n".join(result_list)
         if return_inline:
             return await ctx.send(
                 f"Here's your {len(result_list)} results:\n {to_send}"

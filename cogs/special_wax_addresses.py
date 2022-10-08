@@ -1,7 +1,7 @@
 from discord.ext import tasks
 
 from utils.meta_cog import MetaCog
-from utils.wax_addresses import async_get_special_wax_address_list
+from wax_chain.wax_addresses import async_get_special_wax_address_list
 
 
 class SpecialWaxAddresses(MetaCog):
