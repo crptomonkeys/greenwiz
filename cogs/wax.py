@@ -755,7 +755,7 @@ class Wax(MetaCog):
         """Fetches all wax addresses who have completed at least n games of monkeysmatch. Default 1."""
         res = await self.wax_con.monkeysmatch_top(completions)
 
-        with open("res/tmp/monkeysmatch_results.json", "w+") as f:
+        with open("res/tmp/monkeysmatch_results.json", "w+", encoding="utf-8") as f:
             json.dump(res, f, indent=4)
 
         await ctx.send(

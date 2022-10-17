@@ -123,7 +123,7 @@ class UplandData(MetaCog):
         possible_selection = [i for i in vd.items() if len(i) < 13]
         self.bot.visitor_data = vd
 
-        with open("res/tmp/temp_file.json", "w+") as f:
+        with open("res/tmp/temp_file.json", "w+", encoding="utf-8") as f:
             json.dump(dict(self.bot.visitor_data), f, indent=4)
 
         await ctx.send(

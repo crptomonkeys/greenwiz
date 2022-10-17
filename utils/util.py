@@ -182,7 +182,7 @@ def to_file(text=None) -> discord.File:
 
 def load_words() -> [str]:
     """Loads up the top 20,000 most common words into a nice list."""
-    with open("res/top_20k_words.txt") as word_file:
+    with open("res/top_20k_words.txt", encoding="utf-8", errors="replace") as word_file:
         valid_words = list(set(word_file.read().split()))
 
         return valid_words
