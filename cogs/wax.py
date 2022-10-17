@@ -37,6 +37,7 @@ from utils.util import (
     scope,
     now_stamp,
     calc_msg_activity,
+    get_addrs_from_content_or_file,
 )
 from wax_chain.collection_config import (
     collections,
@@ -103,19 +104,48 @@ class Wax(MetaCog):
         description="Blacklists an address from future filtered giveaways.", hidden=True
     )
     @commands.check(nifty())
-    async def blacklist(self, ctx: commands.Context, address: str):
+    async def blacklist(self, ctx: commands.Context, *, provided: str):
         """
         Adds an address to the blacklist. They will be excluded from future filtered giveaways.
+        Alternatively, you can provide a file that is either a csv or a .txt file with one address per line with no comas.
+        All valid addresses in the file will be blacklisted.
         """
-        resp = await self.bot.green_api.blacklist_add(address)
-
-        if not resp.get("success", False):
-            raise UnableToCompleteRequestedAction(
-                resp.get("exception", "Add to blacklist failed, try again later.")
+        return_inline, i_list = await get_addrs_from_content_or_file(
+            ctx.message, provided
+        )
+        # For just one address, short way
+        if len(i_list) == 1:
+            resp = await self.bot.green_api.blacklist_add(address)
+            if not resp.get("success", False):
+                raise UnableToCompleteRequestedAction(
+                    resp.get("exception", "Add to blacklist failed, try again later.")
+                )
+            return await ctx.send(
+                f"`{address}` has been blacklisted from future filtered giveaways."
             )
-
+        # Mass-blacklist
+        specials = await async_get_special_wax_address_list()
+        to_blacklist, unable, successfully_blacklisted = [], [], []
+        for addr in list(set(i_list)):
+            if is_valid_wax_address(addr, valid_specials=specials):
+                to_blacklist.append(addr)
+            else:
+                unable.append(addr)
         await ctx.send(
-            f"`{address}` has been blacklisted from future filtered giveaways."
+            f"Stand by. Blacklisting {len(to_blacklist)} addresses, {unable} invalid or already blacklisted."
+        )
+        tasks = [
+            asyncio.create_task(self.bot.green_api.blacklist_add(address))
+            for address in to_blacklist
+        ]
+        results = await asyncio.gather(*tasks)
+        failed: int = 0
+        for result in results:
+            if not result.get("success"):
+                failed += 1
+                await ctx.send(result)
+        await ctx.send(
+            f"Successfully blacklisted {len(to_blacklist)-failed} addresses. {failed} failed for reasons above."
         )
 
     @commands.command(
@@ -161,47 +191,15 @@ class Wax(MetaCog):
     async def filter(self, ctx: commands.Context, *, provided: str = None):
         """
         Remove all blacklisted addresses from the provided txt file or in-line list.
-        File should be txt and have one address per line OR you can add a single-character deliniator to the command (such as , if you want to do a csv).
+        File should be a .csv or a .txt with one address per line.
         If you send addresses in the command, they should be separated by single spaces with no comas.
         If you request addresses inline, it will return addresses inline. If you request addresses with a file,
         it will return a file.
         """
-        return_inline = False
-        file = None
-        deliniator = r"\n"
-        if not ctx.message.attachments or len(ctx.message.attachments) < 1:
-            if provided is None:
-                return await ctx.send(
-                    "No addresses provided. Please either attach a .txt list or put a list of "
-                    "addresses in this command."
-                )
-            await ctx.send("No file found. Assuming your message is your list.")
-            return_inline = True
-            i_list = list(
-                set(
-                    [
-                        address.lower().replace(" ", "")
-                        for address in provided.split(deliniator)
-                    ]
-                )
-            )
-        else:
-            if provided and "csv" in provided:
-                deliniator = ","
-            elif provided and len(provided) == 1:
-                # Provided is a single character deliniator
-                deliniator = provided
-            file = ctx.message.attachments[0]
-            if file.filename[-4:] not in [".txt", ".csv"]:
-                return await ctx.send(
-                    "Please provide a .txt or .csv file, I can't read that one."
-                )
+        return_inline, i_list = await get_addrs_from_content_or_file(
+            ctx.message, provided
+        )
 
-            provided = str(await file.read())[2:-1]
-            print(provided)
-            i_list = list(
-                set([i.lower() for i in provided.replace("\\r", "").split(deliniator)])
-            )
         print(i_list)
         blacklist = set(await self.bot.green_api.get_blacklist())
         special_addresses = set(await async_get_special_wax_address_list(self.session))
