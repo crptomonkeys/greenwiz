@@ -923,7 +923,7 @@ async def async_get_special_wax_address_list(
                 )
                 return specials
         specials.update([x["newname"] for x in response])
-        if len(response < 1000):
+        if len(response) < 1000:
             break
         page += 1
     return specials
