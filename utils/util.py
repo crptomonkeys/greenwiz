@@ -331,11 +331,13 @@ async def addrs_from_file(file: discord.File) -> [str]:
 
 async def addrs_from_txt(file: discord.File) -> [str]:
     """Reads a txt discord attachment and returns a list of strings of addresses in it."""
-    result_string = str(await file.read())[2:-1].replace("\\r", "")
-    return [i.lower() for i in result_string.split(r"\n")]
+    file_bytes = await file.read()
+    contents = file_bytes.decode("utf-8").split("\n")
+    return [i.lower() for i in contents]
 
 
 async def addrs_from_csv(file: discord.File) -> [str]:
     """Reads a csv discord atachment and returns a list of strings of addresses in it."""
-    result_string = str(await file.read())[2:-1]
-    return [i.lower() for i in result_string.split(",")]
+    file_bytes = await file.read()
+    contents = file_bytes.decode("utf-8").split(",")
+    return [i.lower() for i in contents]

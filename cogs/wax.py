@@ -104,11 +104,10 @@ class Wax(MetaCog):
         description="Blacklists an address from future filtered giveaways.", hidden=True
     )
     @commands.check(nifty())
-    async def blacklist(self, ctx: commands.Context, *, provided: str):
+    async def blacklist(self, ctx: commands.Context, *, provided: Optional[str]):
         """
         Adds an address to the blacklist. They will be excluded from future filtered giveaways.
         Alternatively, you can provide a file that is either a csv or a .txt file with one address per line with no comas.
-        Limitation: If you specifiy a file you must put some content in the message, but the content will be ignored.
         All valid addresses in the file will be blacklisted.
         """
         return_inline, i_list = await get_addrs_from_content_or_file(
