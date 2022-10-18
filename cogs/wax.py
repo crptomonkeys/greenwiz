@@ -3,7 +3,7 @@ import json
 import random
 import time
 import traceback
-from collections import deque
+from collections import deque, Counter
 from typing import Optional, Union
 
 import discord
@@ -140,13 +140,12 @@ class Wax(MetaCog):
             for address in to_blacklist
         ]
         results = await asyncio.gather(*tasks)
-        failed: int = 0
+        failed = Counter()
         for result in results:
             if not result.get("success"):
-                failed += 1
-                await ctx.send(result)
+                failed[result["exception"]] += 1
         await ctx.send(
-            f"Successfully blacklisted {len(to_blacklist)-failed} addresses. {failed} failed for reasons above."
+            f"Successfully blacklisted {len(to_blacklist)-sum(failed.values())} addresses. Failure reasons are: {failed}"
         )
 
     @commands.command(
