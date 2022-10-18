@@ -107,7 +107,7 @@ class Wax(MetaCog):
     async def blacklist(self, ctx: commands.Context, *, provided: Optional[str]):
         """
         Adds an address to the blacklist. They will be excluded from future filtered giveaways.
-        Alternatively, you can provide a file that is either a csv or a .txt file with one address per line with no comas.
+        Alternatively, you can provide a file that is either a csv or a .txt file with one address per line with no commas.
         All valid addresses in the file will be blacklisted.
         """
         return_inline, i_list = await get_addrs_from_content_or_file(
@@ -191,7 +191,7 @@ class Wax(MetaCog):
         """
         Remove all blacklisted addresses from the provided txt file or in-line list.
         File should be a .csv or a .txt with one address per line.
-        If you send addresses in the command, they should be separated by single spaces with no comas.
+        If you send addresses in the command, they should be separated by single spaces with no commas.
         If you request addresses inline, it will return addresses inline. If you request addresses with a file,
         it will return a file.
         """
