@@ -225,6 +225,7 @@ class Wax(MetaCog):
             return await ctx.send(
                 f"Here's your {len(result_list)} results:\n {to_send}"
             )
+        file = ctx.message.attachments[0]
         with open(f"res/tmp/filtered_{file.filename}", "w+", encoding="utf-8") as f:
             f.write(to_send)
         num_removed = len(i_list) - len(result_list)
