@@ -154,7 +154,8 @@ class Wax(MetaCog):
             for key, value in failed.items():
                 to_send += f"\n{value}x {key}"
         elif sum(failed.values()) == 1:
-            to_send += f"One address couldn't be blacklisted because {failed.keys()[0]}"
+            st = str(failed.most_common(1)).split("'")[1]
+            to_send += f"One address couldn't be blacklisted because {st}"
         await ctx.send(to_send)
 
     @commands.command(
