@@ -131,9 +131,10 @@ class Wax(MetaCog):
                 to_blacklist.append(addr)
             else:
                 unable.append(addr)
-        to_send = f"Stand by. Blacklisting {len(to_blacklist)} addresses"
+        to_send = ""
         if len(unable) > 0:
-            to_send += f", skipping the following invalid addresses: {unable}."
+            to_send += f"Skipping the following invalid addresses: {unable}."
+        to_send += f" Attempting to blacklist {len(to_blacklist)} addresses, stand by."
         await ctx.send(to_send)
         tasks = [
             asyncio.create_task(self.bot.green_api.blacklist_add(address))
@@ -144,9 +145,17 @@ class Wax(MetaCog):
         for result in results:
             if not result.get("success"):
                 failed[result["exception"]] += 1
-        await ctx.send(
-            f"Successfully blacklisted {len(to_blacklist)-sum(failed.values())} addresses. Failure reasons are: {failed}"
-        )
+        if len(to_blacklist) - sum(failed.values()) > 0:
+            to_send = f"Successfully blacklisted {len(to_blacklist)-sum(failed.values())} addresses."
+        else:
+            to_send = "No addresses were blacklisted."
+        if sum(failed.values()) > 1:
+            to_send += f" Failure reasons are:"
+            for key, value in failed.items():
+                to_send += f"\n{value}x {key}"
+        elif sum(failed.values()) == 1:
+            to_send += f"One address couldn't be blacklisted because {failed.keys()[0]}"
+        await ctx.send(to_send)
 
     @commands.command(
         description="Remove an address from future filtered giveaways.", hidden=True
