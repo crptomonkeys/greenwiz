@@ -311,16 +311,12 @@ async def get_addrs_from_content_or_file(
     The list is a list of addresses from either the message attachment, if available, or the message content."""
     if hasattr(message, "attachments") and len(message.attachments) > 0:
         return (False, await addrs_from_file(message.attachments[0]))
-    deliniator = r"\n"
+
     if provided is None:
         raise InvalidInput(
             "No addresses provided. Please either attach a .txt list or put a list of addresses in this command."
         )
-    i_list = list(
-        set(
-            [address.lower().replace(" ", "") for address in provided.split(deliniator)]
-        )
-    )
+    i_list = list(set([address.lower() for address in provided.split()]))
     return True, i_list
 
 

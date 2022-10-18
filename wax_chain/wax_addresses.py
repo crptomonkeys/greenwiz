@@ -23,10 +23,10 @@ def fallback_special_wax_addresses(
 def _update_fallback_special_wax_addresses(filename: str = fallback_file_name) -> bool:
     """This can not be run in production.
     This will overwrite the existing fallback list with an up to date one.
-    It also edits this file's code directly, which is why it is disabled in production.
+    It also edits this file's code directly to update the date in the above function's docstring.
     Returns whether or not it updated the list."""
     if ENV.lower() == "prod":
-        raise BaseException("This can not be run in production.")
+        raise AssertionError("This can not be run in production.")
     updated_list = list(get_special_wax_address_list())
     if len(updated_list) < len(fallback_special_wax_addresses()):
         return False

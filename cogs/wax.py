@@ -108,6 +108,7 @@ class Wax(MetaCog):
         """
         Adds an address to the blacklist. They will be excluded from future filtered giveaways.
         Alternatively, you can provide a file that is either a csv or a .txt file with one address per line with no comas.
+        Limitation: If you specifiy a file you must put some content in the message, but the content will be ignored.
         All valid addresses in the file will be blacklisted.
         """
         return_inline, i_list = await get_addrs_from_content_or_file(
@@ -115,16 +116,16 @@ class Wax(MetaCog):
         )
         # For just one address, short way
         if len(i_list) == 1:
-            resp = await self.bot.green_api.blacklist_add(address)
+            resp = await self.bot.green_api.blacklist_add(i_list)
             if not resp.get("success", False):
                 raise UnableToCompleteRequestedAction(
                     resp.get("exception", "Add to blacklist failed, try again later.")
                 )
             return await ctx.send(
-                f"`{address}` has been blacklisted from future filtered giveaways."
+                f"`{i_list}` has been blacklisted from future filtered giveaways."
             )
         # Mass-blacklist
-        specials = await async_get_special_wax_address_list()
+        specials = await async_get_special_wax_address_list(self.session)
         to_blacklist, unable, successfully_blacklisted = [], [], []
         for addr in list(set(i_list)):
             if is_valid_wax_address(addr, valid_specials=specials):
