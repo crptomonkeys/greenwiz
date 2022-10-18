@@ -182,7 +182,7 @@ def to_file(text=None) -> discord.File:
 
 def load_words() -> [str]:
     """Loads up the top 20,000 most common words into a nice list."""
-    with open("res/top_20k_words.txt") as word_file:
+    with open("res/top_20k_words.txt", encoding="utf-8", errors="replace") as word_file:
         valid_words = list(set(word_file.read().split()))
 
         return valid_words
@@ -301,3 +301,43 @@ async def save_temp_then_share(ctx, content: str, message: str, filename: str) -
     with open(filename, "w+", encoding="utf-8") as f:
         f.write(content)
     await ctx.send(message, file=discord.File(filename))
+
+
+async def get_addrs_from_content_or_file(
+    message: discord.Message, provided: str = None
+) -> (bool, [str]):
+    """Returns a tuple of bool and list of str.
+    The bool is whether the results shoould be relayed inline or in a file.
+    The list is a list of addresses from either the message attachment, if available, or the message content."""
+    if hasattr(message, "attachments") and len(message.attachments) > 0:
+        return (False, await addrs_from_file(message.attachments[0]))
+
+    if provided is None:
+        raise InvalidInput(
+            "No addresses provided. Please either attach a .txt list or put a list of addresses in this command."
+        )
+    i_list = list(set([address.lower() for address in provided.split()]))
+    return True, i_list
+
+
+async def addrs_from_file(file: discord.File) -> [str]:
+    """Reads a discord attachment and returns a list of strings of addresses in it."""
+    if file.filename[-4:] not in [".txt", ".csv"]:
+        raise InvalidInput("Please provide a .txt or .csv file, I can't read that one.")
+    if file.filename[-4:] == ".csv":
+        return await addrs_from_csv(file)
+    return await addrs_from_txt(file)
+
+
+async def addrs_from_txt(file: discord.File) -> [str]:
+    """Reads a txt discord attachment and returns a list of strings of addresses in it."""
+    file_bytes = await file.read()
+    contents = file_bytes.decode("utf-8").split("\n")
+    return [i.lower() for i in contents]
+
+
+async def addrs_from_csv(file: discord.File) -> [str]:
+    """Reads a csv discord atachment and returns a list of strings of addresses in it."""
+    file_bytes = await file.read()
+    contents = file_bytes.decode("utf-8").split(",")
+    return [i.lower() for i in contents]
