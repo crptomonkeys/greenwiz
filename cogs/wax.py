@@ -131,9 +131,10 @@ class Wax(MetaCog):
                 to_blacklist.append(addr)
             else:
                 unable.append(addr)
-        await ctx.send(
-            f"Stand by. Blacklisting {len(to_blacklist)} addresses, {unable} invalid or already blacklisted."
-        )
+        to_send = f"Stand by. Blacklisting {len(to_blacklist)} addresses"
+        if len(unable) > 0:
+            to_send += f", skipping the following invalid addresses: {unable}."
+        await ctx.send(t_send)
         tasks = [
             asyncio.create_task(self.bot.green_api.blacklist_add(address))
             for address in to_blacklist
