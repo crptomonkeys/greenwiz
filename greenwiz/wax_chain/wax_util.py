@@ -437,7 +437,7 @@ class WaxConnection:
 
         if not res:
             self.log(
-                f"Timed out attempting to broadcast a transaction; all my connected endpoints appear to be down."
+                "Timed out attempting to broadcast a transaction; all my connected endpoints appear to be down."
             )
             raise InvalidWaxCardSend(
                 "Hmm, all the APIs I am connected to seem to be down at the moment."
@@ -562,7 +562,8 @@ class WaxConnection:
         ]
 
     async def get_link_id_and_confirm_claimlink_creation(self, tx_id) -> str:
-        """Attempts to confirm that a claimlink was successfully created and get its link_id to present to the recipient in a claimlink."""
+        """Attempts to confirm that a claimlink was successfully created and get its link_id to
+        present to the recipient in a claimlink."""
         self.log("Generating a claimlink and attempting to confirm its creation.")
         cycles = 0
         params = {"id": tx_id}
@@ -570,7 +571,8 @@ class WaxConnection:
         while cycles < 30:
             sleep_time = min(2**cycles, 64)
             self.log(
-                f"Waiting to receive confirmation of transaction {tx_id}, on cycle {cycles} of 30. Waiting {sleep_time} seconds before continuing."
+                f"Waiting to receive confirmation of transaction {tx_id}, on cycle {cycles} of 30."
+                f" Waiting {sleep_time} seconds before continuing."
             )
             await asyncio.sleep(sleep_time)  # Exponential backoff
             if len(self.history_rpc) < 1:
@@ -585,7 +587,8 @@ class WaxConnection:
                     ]
                 )
                 raise UnableToCompleteRequestedAction(
-                    "All APIs I am connected to have reported invalid results, so I wasn't able to confirm your transaction."
+                    "All APIs I am connected to have reported invalid results, so I wasn't able to confirm"
+                    " your transaction."
                 )
             selected = self.history_rpc[0]
             host = selected.URL
@@ -879,7 +882,8 @@ async def announce_and_send_link(
         f" popups):\n{link}\nWARNING: Any one you share this link with can claim it. Do not share with"
         f" anyone!\n"
         f"Avoid scams: before clicking a claim link, ensure the top level domain is **atomichub.io**\n"
-        f"As an additional security measure, make sure I pinged you in <#{channel.id}> for this link. Impostors can't send messages in that channel.\n"
+        f"As an additional security measure, make sure I pinged you in <#{channel.id}> for this link."
+        f"Impostors can't send messages in that channel.\n"
         f"More information about {cinfo.name} at {cinfo.web}"
     )
     claim_id = link.split("?")[0].split("/")[-1]
@@ -956,8 +960,8 @@ async def send_link_start_to_finish(
         bot_.drop_send_reentrancy = {}
     if bot_.drop_send_reentrancy.get(sender.id, False):
         raise InvalidInput(
-            f"You may only use this command once at a time. Wait for the previous drop to complete"
-            f" and then try again."
+            "You may only use this command once at a time. Wait for the previous drop to complete"
+            " and then try again."
         )
     elif authd < 2:
         # Reentrancy guard is only important for non-printers, because reentrancy guard is only for preventing

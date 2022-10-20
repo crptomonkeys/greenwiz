@@ -10,9 +10,9 @@ from utils.meta_cog import MetaCog
 class Administration(MetaCog):
 
     # Commands
-    @commands.group()
+    @commands.group(name="set")
     @commands.has_permissions(manage_guild=True)
-    async def set(self, ctx):
+    async def set_base(self, ctx):
         """Your basic settings"""
         # if ctx.invoked_subcommand is not None:
         #     return
@@ -154,8 +154,8 @@ class Administration(MetaCog):
         for setting, value in self.bot.settings.SERVER_DEFAULT_VALUES.items():
             await self.bot.storage[ctx.guild].set_setting(setting, value)
 
-    @settings.command()
-    async def set(
+    @settings.command(name="set")
+    async def settings_set(
         self,
         ctx: commands.Context,
         setting: str,

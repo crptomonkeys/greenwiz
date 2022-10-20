@@ -210,7 +210,7 @@ class Bot(commands.Bot):
         Allows more customizability in what to log and what not to log
          than classic critical, error, warn, info, debug.
         """
-        if severity in self.logging_status and not severity in self.debug_mode:
+        if severity in self.logging_status and severity not in self.debug_mode:
             return
         print(f"[{severity}] {message}")
         if severity not in self.debug_mode:

@@ -1,16 +1,13 @@
-import asyncio
-from random import randrange
 from typing import Optional, Union
 
 import discord
-from discord.ext import commands, tasks
+from discord.ext import commands
 
 from utils.cryptomonkey_util import nifty
 from utils.util import utcnow, load_words
 from utils.exceptions import InvalidInput
 from utils.meta_cog import MetaCog
 from utils.util import scope
-from wax_chain.wax_addresses import async_get_special_wax_address_list
 from wax_chain.wax_util import get_card_dict
 
 
@@ -99,8 +96,8 @@ class Test(MetaCog):
                 f"for reason {reason}."
             )
         await ctx.send(
-            f"Failed to interpret member. It is a string of the correct length to be a valid wax address "
-            f"in theory but isn't actually a valid wax address."
+            "Failed to interpret member. It is a string of the correct length to be a"
+            " valid wax address in theory but isn't actually a valid wax address."
         )
 
     @commands.command(description="Finds words in a random key.")

@@ -5,7 +5,6 @@ import textwrap
 import time
 import timeit
 import typing
-from datetime import datetime
 
 import discord
 from discord.ext import commands
@@ -153,11 +152,11 @@ class Dev(MetaCog):
         target_auth = await self.storage[ctx.guild].get_auth(user)
         if invoker_auth <= level:
             return await ctx.send(
-                f"You can not set someone's auth level higher than or equal to your own."
+                "You can not set someone's auth level higher than or equal to your own."
             )
         if target_auth >= invoker_auth:
             return await ctx.send(
-                f"You can't change the auth level of someone with your auth level or higher."
+                "You can't change the auth level of someone with your auth level or higher."
             )
 
         await self.storage[ctx.guild].set_auth(user, level)
@@ -290,7 +289,7 @@ class Dev(MetaCog):
         env.update(globals())
         exec(compile(parsed, filename="<ast>", mode="exec"), env)
 
-        result = await eval(f"evaluation()", env)
+        result = await eval("evaluation()", env)
         endtime = time.time_ns()
         elapsed_ms = int((endtime - starttime) / 10000) / 100
         if elapsed_ms > 100:
@@ -445,7 +444,7 @@ class Dev(MetaCog):
             await asyncio.sleep(2)
             await user.send(f"{name} told you to leave them alone.")
             await asyncio.sleep(4)
-            await user.send(f"It is a very good idea for you to do so.")
+            await user.send("It is a very good idea for you to do so.")
             await asyncio.sleep(10)
             await user.send("Seriously.")
             await asyncio.sleep(10)

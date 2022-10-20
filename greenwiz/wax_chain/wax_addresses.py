@@ -64,9 +64,10 @@ system_accounts = {
 
 
 def is_valid_wax_address(addr: str, valid_specials: list | set = None) -> bool:
-    """Returns whether the provided string is a valid wax address.
-    An optional valid_specials allows injecting an up to date list of special wax addresses, otherwise the stored list will be used.
-    It is recommended to use get_special_wax_address_list to provide this function with an up to date list."""
+    """Returns whether the provided string is a valid wax address. An optional
+    valid_specials allows injecting an up to date list of special wax addresses,
+     otherwise the stored list will be used. It is recommended to use
+     get_special_wax_address_list to provide this function with an up to date list."""
     if len(addr) > 12:
         return False
     match = re.match(r"[a-z1-5\.]{1,12}", addr, flags=re.I)
@@ -84,10 +85,11 @@ def is_valid_wax_address(addr: str, valid_specials: list | set = None) -> bool:
 
 
 def parse_wax_address(text: str, valid_specials: list | set = None) -> str:
-    """Returns the first valid wax address in a provided string, if there is one. To match, an address must be surrounded by whitespace.
-    Returns None on no match.
-    An optional valid_specials allows injecting an up to date list of special wax addresses, otherwise the stored list will be used.
-    It is recommended to use get_special_wax_address_list to provide this function with an up to date list."""
+    """Returns the first valid wax address in a provided string, if there is one.
+    To match, an address must be surrounded by whitespace. Returns None on no match.
+    An optional valid_specials allows injecting an up to date list of special wax
+    addresses, otherwise the stored list will be used. It is recommended to use
+    get_special_wax_address_list to provide this function with an up to date list."""
     for item in text.split():
         if is_valid_wax_address(item, valid_specials=valid_specials):
             return item
@@ -95,15 +97,17 @@ def parse_wax_address(text: str, valid_specials: list | set = None) -> str:
 
 
 def get_special_wax_address_list() -> set[str]:
-    """Attempts to fetch and return the full list of special wax addresses from eosauthority's api's records of auctions.
-    Failing that, it returns a hardcoded list as a fallback. This method is syncronous, using requests."""
+    """Attempts to fetch and return the full list of special wax addresses from
+    eosauthority's api's records of auctions. Failing that, it returns a hardcoded
+    list as a fallback. This method is syncronous, using requests."""
     page = 1
     specials = fallback_special_wax_addresses()
     while True:
         with requests.get(f"{QUERY_SPECIALS_URL}{page}&sort=rank&type=sold") as resp:
             if int(resp.status_code) != 200:
                 print(
-                    f"Unable to update special wax addresses at the moment, using stored list. Received status {resp.status}"
+                    f"Unable to update special wax addresses at the moment, "
+                    f" using stored list. Received status {resp.status}"
                 )
                 return specials
             try:
@@ -124,8 +128,9 @@ def get_special_wax_address_list() -> set[str]:
 async def async_get_special_wax_address_list(
     session: aiohttp.ClientSession,
 ) -> set[str]:
-    """Attempts to fetch and return the full list of special wax addresses from eosauthority's api's records of auctions.
-    Failing that, it returns a hardcoded list as of as a fallback. This method is asyncronous, using aiohttp."""
+    """Attempts to fetch and return the full list of special wax addresses from
+    eosauthority's api's records of auctions. Failing that, it returns a hardcoded
+    list as of as a fallback. This method is asyncronous, using aiohttp."""
     if session.closed:
         return
     page = 1
@@ -136,7 +141,8 @@ async def async_get_special_wax_address_list(
         ) as resp:
             if int(resp.status) != 200:
                 print(
-                    f"Unable to update special wax addresses at the moment, using stored list. Received status {resp.status}"
+                    f"Unable to update special wax addresses at the moment, "
+                    f"using stored list. Received status {resp.status}"
                 )
                 return specials
             try:

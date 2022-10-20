@@ -4,7 +4,7 @@ from datetime import datetime, timezone, timedelta
 
 import discord
 
-from utils.exceptions import InvalidInput, InvalidResponse
+from utils.exceptions import InvalidInput
 
 # Returns current timestamp in the desired format, in this case MM/DD/YYYY HH:MM:SS
 from utils.settings import (
@@ -203,7 +203,6 @@ def today() -> str:
 
 async def usage_react(num: int, message: discord.Message):
     """Converts a number from 1-9 to an CM_EMOJIS."""
-    reactions_to_add = []
     if num < 10:
         try:
             await message.add_reaction(NUMBER_REACTIONS[num])

@@ -220,7 +220,8 @@ async def handle_command_error(bot, ctx, error) -> None:
         #  special care here.
         try:
             await ctx.send(
-                f"Hmm, something went wrong with {ctx.command}. I have let the developer know, and they will take a look."
+                f"Hmm, something went wrong with {ctx.command}. "
+                f"I have let the developer know, and they will take a look."
             )
             owner = bot.get_user(bot.owner_id)
             await owner.send(

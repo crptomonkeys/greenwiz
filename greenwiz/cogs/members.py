@@ -3,7 +3,7 @@ from discord.ext import commands
 
 from utils.meta_cog import MetaCog
 from utils.settings import BASIC_PERMS, SIGNIFICANT_PERMS
-from utils.util import log, scope, embed_footer, now_stamp
+from utils.util import scope, embed_footer, now_stamp
 
 
 class Members(MetaCog):

@@ -1,14 +1,11 @@
 import asyncio
-import decimal
 import math
 import random
-from _decimal import InvalidOperation
 from decimal import Decimal
-from typing import Union, Coroutine, Any
+from typing import Union, Coroutine
 
 import discord
 
-import utils.settings
 from utils.coerce_converters import sanitize_name
 from utils.exceptions import InvalidInput, UnableToCompleteRequestedAction
 
@@ -154,7 +151,6 @@ class StorageManager:
             self.watch("recent_activity"),
         ]
         await asyncio.gather(*tx)
-        bal = 0
         try:
             transference = await self.redis.hget(
                 f"{self.guild_id}:recent_activity", user_id

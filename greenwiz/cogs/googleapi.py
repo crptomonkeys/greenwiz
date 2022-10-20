@@ -34,7 +34,7 @@ class Googleapi(MetaCog):
         self.creds = None
         if not hasattr(self.bot, "green_api"):
             self.bot.green_api = GreenApi(self.session)
-        self.log(f"Configuring spreadsheet loader...", "DBUG")
+        self.log("Configuring spreadsheet loader...", "DBUG")
         # Find the authorizations file
         if os.path.exists("token.pickle"):
             with open("token.pickle", "rb") as token:
@@ -83,7 +83,7 @@ class Googleapi(MetaCog):
 
         if not discord_range or not wax_range:
             raise InvalidInput(
-                f"discord_range and wax_range are required if the sheet isn't a known one."
+                "discord_range and wax_range are required if the sheet isn't a known one."
             )
 
         if role_required is None:
@@ -119,7 +119,7 @@ class Googleapi(MetaCog):
         self.log(valid_addresses, "DBUG")
         blacklist = await self.bot.green_api.get_blacklist()
         adders = valid_addresses - blacklist
-        with open(f"res/tmp/addresses_from_sheet.txt", "w+", encoding="utf-8") as f:
+        with open("res/tmp/addresses_from_sheet.txt", "w+", encoding="utf-8") as f:
             f.write(",".join(adders))
 
         await ctx.send(

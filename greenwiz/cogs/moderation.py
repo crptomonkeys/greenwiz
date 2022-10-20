@@ -106,15 +106,18 @@ class Moderation(MetaCog):
         if flag == "posting scam claim links":
             contents = content[:1940].replace("`", "")
             await channel.send(
-                f"<@&733313838375632979>, I think I detected {message.author} ({message.author.mention}) {flag}. Please take a look and ban them if this is malicious.\n{message.jump_url}\nMessage content (don't click):\n```\n{contents}\n```"
+                f"<@&733313838375632979>, I think I detected {message.author} "
+                f"({message.author.mention}) {flag}. Please take a look and ban"
+                f" them if this is malicious.\n{message.jump_url}\n"
+                f"Message content (don't click):\n```\n{contents}\n```"
             )
             return
 
         try:
             await message.author.ban(reason=f"Automatic ban for {flag}")
             await channel.send(
-                f"<@&733313838375632979>, I'm automatically banning {message.author} ({message.author.id}) for {flag} in "
-                f"channel {message.channel}."
+                f"<@&733313838375632979>, I'm automatically banning {message.author}"
+                f" ({message.author.id}) for {flag} in channel {message.channel}."
             )
             if channel != message.channel:
                 contents = content[:1940].replace("`", "")
@@ -212,7 +215,7 @@ class Moderation(MetaCog):
         Requires: Manage Server permission
         Member: the person to unban"""
         await ctx.guild.unban(member)
-        await ctx.send(f"Unbanned {ban.user}")
+        await ctx.send(f"Unbanned {member} ({member.id})")
         self.bot.log(f"{ctx.author} unbanned {member} from {ctx.guild}.", self.bot.cmd)
 
     @commands.command(
@@ -303,14 +306,17 @@ class Moderation(MetaCog):
                 failed_to_ban.append(f"{user} (account >{age_in_months}m old)")
         self.bot.recently_massbanned = banned_list
 
+        account_age_warning = """If you would like to ban older accounts, you can
+         format your command like `banlast10m 10 12 to ban all accounts younger
+         than 12 months old that joined in the last 10 minutes. Please use
+         extreme caution when setting an account age.`"""
+
         if len(failed_to_ban) > 0:
             to_send = f'Failed to ban: {",".join([res for res in failed_to_ban])}'[
                 :1990
             ]
             await ctx.send(to_send)
-            await ctx.send(
-                "If you would like to ban older accounts, you can format your command like `banlast10m 10 12 to ban all accounts younger than 12 months old that joined in the last 10 minutes. Please use extreme caution when setting an account age.`"
-            )
+            await ctx.send(account_age_warning)
         return await ctx.send(
             f"Successfully banned {len(banned_list)} users with account ages less than {age_in_months} months by"
             f" {ctx.author}'s request."
