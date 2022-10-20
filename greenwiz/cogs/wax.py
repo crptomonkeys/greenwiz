@@ -115,13 +115,13 @@ class Wax(MetaCog):
         )
         # For just one address, short way
         if len(i_list) == 1:
-            resp = await self.bot.green_api.blacklist_add(i_list)
+            resp = await self.bot.green_api.blacklist_add(i_list[0])
             if not resp.get("success", False):
                 raise UnableToCompleteRequestedAction(
                     resp.get("exception", "Add to blacklist failed, try again later.")
                 )
             return await ctx.send(
-                f"`{i_list}` has been blacklisted from future filtered giveaways."
+                f"`{i_list[0]}` has been blacklisted from future filtered giveaways."
             )
         # Mass-blacklist
         specials = await async_get_special_wax_address_list(self.session)

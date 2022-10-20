@@ -307,7 +307,7 @@ async def get_addrs_from_content_or_file(
     message: discord.Message, provided: str = None
 ) -> (bool, [str]):
     """Returns a tuple of bool and list of str.
-    The bool is whether the results shoould be relayed inline or in a file.
+    The bool is whether the results should be relayed inline or in a file.
     The list is a list of addresses from either the message attachment, if available, or the message content."""
     if hasattr(message, "attachments") and len(message.attachments) > 0:
         return (False, await addrs_from_file(message.attachments[0]))
