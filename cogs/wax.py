@@ -121,7 +121,7 @@ class Wax(MetaCog):
                     resp.get("exception", "Add to blacklist failed, try again later.")
                 )
             return await ctx.send(
-                f"`{i_list}` has been blacklisted from future filtered giveaways."
+                f"`{i_list[0]}` has been blacklisted from future filtered giveaways."
             )
         # Mass-blacklist
         specials = await async_get_special_wax_address_list(self.session)
