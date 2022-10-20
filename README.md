@@ -1,6 +1,8 @@
 # greenwiz
 The Green Wizard is a discord NFT tipbot launched in 2019. To my knowledge, it is the first ever NFT tipbot on any platform. It was built for cryptomonKeys, and has given out more than 50,000 free NFTs to date. It also has advanced auto-moderation capabilities, and has automatically banned tens of thousands of spammers/scammers.
 
+![Tests](https://github.com/crptomonkeys/greenwiz/actions/workflows/tests.yml/badge.svg)
+
 # To run:
 The Green wizard requires python >=3.9 and a redis server. You can configure redis settings, bot private key, etc in settings.py or through the environment variables referenced in that file. Once configured:
 ```
