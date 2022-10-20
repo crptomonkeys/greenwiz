@@ -302,13 +302,3 @@ class Bot(commands.Bot):
         """Returns the time the bot started up."""
         stamp = int(self.start_time.timestamp() - 1)
         return f"<t:{stamp}:R>"
-
-
-if __name__ == "__main__":
-    bot = Bot()
-    try:
-        bot.run()
-    except ConnectionResetError:
-        print("Initially failed to connect. Retrying in five seconds.")
-        asyncio.sleep(5000)
-        bot.run()

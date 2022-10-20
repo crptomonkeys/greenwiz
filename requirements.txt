@@ -3,7 +3,7 @@ setuptools==60.9.3
 pip==22.0.3
 aiohttp==3.8.1
 aioredis==2.0.1
-discord.py==1.7.3
+discord.py==2.0.1
 aioeos==1.0.2
 parsedatetime==2.6
 ed25519-blake2b==1.4
@@ -15,4 +15,4 @@ psutil==5.8.0
 pygit2==1.6.1
 bananopy==0.3.3
 tldextract==3.2.0
-pytz
+pytz==2022.1
