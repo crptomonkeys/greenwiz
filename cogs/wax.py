@@ -115,7 +115,7 @@ class Wax(MetaCog):
         )
         # For just one address, short way
         if len(i_list) == 1:
-            resp = await self.bot.green_api.blacklist_add(i_list)
+            resp = await self.bot.green_api.blacklist_add(i_list[0])
             if not resp.get("success", False):
                 raise UnableToCompleteRequestedAction(
                     resp.get("exception", "Add to blacklist failed, try again later.")
