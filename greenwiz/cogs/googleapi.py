@@ -28,6 +28,12 @@ def fetch_google_sheet_values(sheet):
     return inner
 
 
+def _lower(string_or_none: Optional[str]) -> Optional[str]:
+    if string_or_none is None:
+        return None
+    return string_or_none.lower()
+
+
 class Googleapi(MetaCog):
     def __init__(self, bot):
         super().__init__(bot)
@@ -69,9 +75,9 @@ class Googleapi(MetaCog):
         discord_range: str = None,
         wax_range: str = None,
     ):
-        """Makes a list of addresses from a spreadsheet that fit the following criteria: discord usernames are
-        unique, present in the cryptomonkeys server, and have the specified role in the cryptomonkeys server. Should
-        be of the form:
+        """Makes a list of addresses from a spreadsheet that fit the following criteria:
+        discord usernames are unique, present in the cryptomonkeys server, and have
+        the specified role in the cryptomonkeys server. Should be of the form:
         fetch_addresses_from_sheet XXXXXX-XXXXXXX 'Sheet1!B2:C' spoke
         or
         fetch_addresses_from_sheet XXXXXX-XXXXXXX 'Sheet1!A2:A' 'Sheet1!C2:C' introduced
@@ -90,7 +96,7 @@ class Googleapi(MetaCog):
             role = None
         else:
             role = discord.utils.find(
-                lambda m: role_required.lower() in m.name.lower(), ctx.guild.roles
+                lambda m: _lower(role_required) in m.name.lower(), ctx.guild.roles
             )
             if role is None:
                 raise InvalidInput(
@@ -123,8 +129,9 @@ class Googleapi(MetaCog):
             f.write(",".join(adders))
 
         await ctx.send(
-            f"Found {len(adders)} unique wallet entries of valid discord users with the role "
-            f"{role_required} and who are not blacklisted (out of {len(wax_addresses)} form submissions). "
+            f"Found {len(adders)} unique wallet entries of valid discord users"
+            f" with the role {role_required} and who are not blacklisted (out "
+            f"of {len(wax_addresses)} form submissions). "
             f"Here's a csv of them all:",
             file=discord.File("res/tmp/addresses_from_sheet.txt"),
         )

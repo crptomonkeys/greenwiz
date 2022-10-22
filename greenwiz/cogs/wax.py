@@ -9,7 +9,7 @@ from typing import Optional, Union
 import discord
 from aioeos import EosAccount
 from discord import TextChannel, Forbidden, HTTPException
-from discord.ext import commands, tasks
+from discord.ext import commands, tasks  # type: ignore
 
 from utils.cryptomonkey_util import monkeyprinter, nifty
 from utils.exceptions import UnableToCompleteRequestedAction, InvalidInput
@@ -134,7 +134,7 @@ class Wax(MetaCog):
             for address in to_blacklist
         ]
         results = await asyncio.gather(*tasks)
-        failed = Counter()
+        failed: Counter = Counter()
         for result in results:
             if not result.get("success"):
                 failed[result["exception"]] += 1
@@ -534,6 +534,8 @@ class Wax(MetaCog):
         as monKeyprinters may optionally specify a number of cards to send, before the reason but after the
         name. Defaults to 1. (Others can also specify a number, but it will always be overwritten by 1)
         """
+        if num is None:
+            num = 1
         if not 1 <= num <= 10:
             raise InvalidInput("Num must be between 1 and 10.")
 
@@ -545,7 +547,7 @@ class Wax(MetaCog):
             return await send_link_start_to_finish(
                 self.wax_con, self.bot, ctx.message, member, ctx.author, reason, num
             )
-
+        member = str(member)
         if len(member) > 12:
             raise InvalidInput(
                 "Provide either a discord member, a discord user id, or a valid wax address."
@@ -618,7 +620,8 @@ class Wax(MetaCog):
         # Determine whether the user can send an unlimited number of drops per day
         if authd == 0:
             raise InvalidInput(f"You can't drop {collection}s here.")
-
+        if number is None:
+            number = 10
         counter, resp = 0, None
         await ctx.message.delete()
         if reason is None:

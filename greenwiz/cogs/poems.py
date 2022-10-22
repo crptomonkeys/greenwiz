@@ -31,7 +31,7 @@ class Poems(MetaCog):
     @poem.command(aliases=["get", "read", "view", "check", "see"])
     @commands.guild_only()
     async def access(self, ctx: commands.Context, name_or_id: Union[str, int]):
-        if "_" not in name_or_id or len(name_or_id) < 18:
+        if isinstance(name_or_id, int) or "_" not in name_or_id or len(name_or_id) < 18:
             name_or_id = str(name_or_id) + "_" + str(ctx.author.id)
         note = await self.storage[ctx.guild].get_codex(name_or_id, style="poem")
         await show_poem(ctx, name_or_id, note)

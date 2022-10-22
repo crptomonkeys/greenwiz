@@ -17,7 +17,7 @@ from utils.exceptions import (
 from utils.paginate import send as p_send
 
 
-async def handle_command_error(bot, ctx, error) -> None:
+async def handle_command_error(bot, ctx, error: BaseException) -> None:
     debug = "DBUG"
     # Ignore local command error handlers, but not assertion errors as if they happen we need all the
     # info on them
@@ -209,12 +209,7 @@ async def handle_command_error(bot, ctx, error) -> None:
         )
     else:
         # Get data from exception and format
-        e_type = type(error)
-        if error is None:
-            trace = ""
-        else:
-            trace = error.__traceback__
-        lines = traceback.format_exception(e_type, error, trace)
+        lines = traceback.format_exception(type(error), error, error.__traceback__)
         traceback_text = "".join(lines)
         # If something goes wrong with sending the dev these errors it's a bit of a yikes so take some
         #  special care here.

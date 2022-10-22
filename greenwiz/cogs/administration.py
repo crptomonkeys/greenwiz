@@ -8,75 +8,6 @@ from utils.meta_cog import MetaCog
 
 
 class Administration(MetaCog):
-
-    # Commands
-    @commands.group(name="set")
-    @commands.has_permissions(manage_guild=True)
-    async def set_base(self, ctx):
-        """Your basic settings"""
-        # if ctx.invoked_subcommand is not None:
-        #     return
-        await ctx.send(
-            "I'm not sure what you would like this to do exactly, so right now it does nothing"
-        )
-        await ctx.send_help(ctx.command)
-
-    @commands.group()
-    @commands.has_permissions(manage_guild=True)
-    async def welcome(self, ctx):
-        """View all your Welcoming Settings"""
-        await ctx.send("Idk")
-
-    @commands.group()
-    @commands.has_permissions(manage_guild=True)
-    async def profiles(self, ctx):
-        """Customize your Profile Settings"""
-        await ctx.send("Idk")
-
-    @commands.group()
-    @commands.has_permissions(manage_guild=True)
-    async def rules(self, ctx):
-        """Setup rules."""
-        await ctx.send("Idk")
-
-    @commands.group()
-    @commands.has_permissions(manage_guild=True)
-    async def map(self, ctx):
-        """Upload with this command so players can see it at any time with the map command."""
-        await ctx.send("Idk")
-
-    @commands.group()
-    @commands.has_permissions(manage_guild=True)
-    async def lore(self, ctx):
-        """Setup the lore command."""
-        await ctx.send("Idk")
-
-    @commands.group()
-    @commands.has_permissions(manage_guild=True)
-    async def selfroles(self, ctx):
-        """add/remove selfroles options."""
-        await ctx.send("Idk")
-
-    @commands.group()
-    @commands.has_permissions(manage_guild=True)
-    async def channels(self, ctx):
-        """add/remove roleplay channels."""
-
-    @commands.group()
-    @commands.has_permissions(manage_guild=True)
-    async def channels_log(self, ctx):
-        """repost all RP to this log."""
-
-    @commands.group()
-    @commands.has_permissions(manage_guild=True)
-    async def itemhud(self, ctx):
-        """All about handling items."""
-
-    @commands.group()
-    @commands.has_permissions(manage_guild=True)
-    async def reloads(self, ctx):
-        """Check/reload your settings and items."""
-
     @commands.group()
     @commands.guild_only()
     async def codex(self, ctx):
@@ -147,7 +78,7 @@ class Administration(MetaCog):
         try:
             settings = await self.bot.storage[ctx.guild].get_settings()
             await ctx.send(settings)
-        except aioredis.ReplyError:
+        except aioredis.ReadOnlyError:
             await ctx.send(
                 "I couldn't display the settings, but I'm resetting them anyways."
             )
@@ -160,14 +91,16 @@ class Administration(MetaCog):
         ctx: commands.Context,
         setting: str,
         *,
-        value: Union[discord.TextChannel, discord.User, str],
+        value: Union[discord.TextChannel, discord.User, str, int],
     ):
         """Sets the specified setting to the specified value."""
-        if hasattr(value, "id"):
-            value = value.id
-            print("aye")
-        value = await self.bot.storage[ctx.guild].set_setting(setting, value)
-        return await ctx.send(f"Saved `{setting}` to `{value}`.")
+        _value: str
+        if isinstance(value, discord.TextChannel) or isinstance(value, discord.User):
+            _value = str(value.id)
+        else:
+            _value = str(value)
+        result: str = await self.bot.storage[ctx.guild].set_setting(setting, _value)
+        return await ctx.send(f"Saved `{setting}` to `{result}`.")
 
 
 async def setup(bot):

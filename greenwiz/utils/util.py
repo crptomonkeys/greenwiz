@@ -167,7 +167,7 @@ def log(message: typing.Any, severity="INFO") -> None:
     print(f"[{severity}] {repr(message)}")
 
 
-def to_file(text=None) -> discord.File:
+def to_file(text: str = None) -> discord.File:
     """
     Convert a string to a discord File object.
     :param text:
@@ -180,7 +180,7 @@ def to_file(text=None) -> discord.File:
     return discord.File("./res/long_result.txt")
 
 
-def load_words() -> [str]:
+def load_words() -> list[str]:
     """Loads up the top 20,000 most common words into a nice list."""
     with open("res/top_20k_words.txt", encoding="utf-8", errors="replace") as word_file:
         valid_words = list(set(word_file.read().split()))

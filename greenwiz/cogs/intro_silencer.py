@@ -1,5 +1,4 @@
 import asyncio
-
 import discord
 from discord import Forbidden
 from discord.ext import commands
@@ -16,7 +15,13 @@ class IntroSilencer(MetaCog):
         if message.channel.id != 758054443479597077:
             return
 
-        role = message.guild.get_role(816406154778378322)
+        role: commands.Snowflake = commands.Snowflake(
+            message.guild.get_role(816406154778378322)
+        )
+        if not isinstance(message.author, discord.Member):
+            raise AssertionError(
+                "Guild messages' author attribute should always be a Member."
+            )
         while role not in message.author.roles:
             # To ensure role gets added even if it was missed initially.
             try:

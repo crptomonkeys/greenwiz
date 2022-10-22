@@ -69,7 +69,11 @@ class Dev(MetaCog):
     @commands.command(name="sendmsg", aliases=["dm", "message"])
     @commands.is_owner()
     async def send(
-        self, ctx: commands.Context, user: discord.User, *, message: str = None
+        self,
+        ctx: commands.Context,
+        user: discord.User,
+        *,
+        message: typing.Optional[str] = None,
     ):
         """
         DM someone from the bot.
@@ -116,10 +120,13 @@ class Dev(MetaCog):
     @autho.command()
     @commands.is_owner()
     async def check(
-        self, ctx: commands.Context, user: discord.User = None, detail: str = ""
+        self,
+        ctx: commands.Context,
+        user: typing.Optional[discord.User] = None,
+        detail: str = "",
     ):
         """Check someone's auth level. Requires auth 2."""
-        if not user:
+        if user is None:
             user = ctx.author
         try:
             auth_level = await self.storage[ctx.guild.id].get_auth(user)
@@ -263,18 +270,18 @@ class Dev(MetaCog):
         This command is owner only for obvious reasons.
         """
         self.log(f"Evaluating {cmd} for {ctx.author}.", "CMMD")
-        starttime = time.time_ns()
+        starttime: float = time.time_ns()
         cmd = cmd.strip("` ")
         if cmd[0:2] == "py":  # Cut out py for ```py``` built in code blocks
             cmd = cmd[2:]
         # add a layer of indentation
         cmd = textwrap.indent(cmd, "    ")
         # wrap in async def body
-        body = f"async def evaluation():\n{cmd}"
-        parsed = ast.parse(body)
-        body = parsed.body[0].body
+        body: str = f"async def evaluation():\n{cmd}"
+        parsed: ast.AST = ast.parse(body)
+        body: str = parsed.body[0].body  # type: ignore
         insert_returns(body)
-        env = {
+        env: dict[str, typing.Any] = {
             "bot": ctx.bot,
             "discord": discord,
             "commands": commands,

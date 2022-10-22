@@ -18,7 +18,10 @@ class JoinAlert(MetaCog):
         )
         embed.set_thumbnail(url=member.display_avatar.url)
         created = int(member.created_at.timestamp())
-        joined = int(member.joined_at.timestamp())
+        if member.joined_at is None:
+            joined = created
+        else:
+            joined = int(member.joined_at.timestamp())
         embed.add_field(name="Created:", value=f"<t:{created}:R>\n<t:{created}:f>")
         embed.add_field(name="Joined:", value=f"<t:{joined}:R>\n<t:{joined}:f>")
 

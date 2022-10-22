@@ -1,3 +1,5 @@
+from typing import Set
+
 import aiohttp.web_exceptions
 
 from utils.exceptions import InvalidInput
@@ -46,7 +48,7 @@ class GreenApi:
             page += 1
             users.update({item["user"]: item for item in resp["data"]})
 
-        blacklist = self.get_blacklist()
+        blacklist = await self.get_blacklist()
         miners = [i for i in users.values() if i["user"] not in blacklist]
         return sorted(miners, key=lambda x: x["rank"])
 
@@ -94,7 +96,9 @@ class GreenApi:
         self.cache_updated = 0
         return resp
 
-    async def get_blacklist(self, force: bool = False, expiry: float = 30.0) -> set:
+    async def get_blacklist(
+        self, force: bool = False, expiry: float = 30.0
+    ) -> Set[str]:
         """Fetch the blacklist from source. Cache for a minute, but cache is rendered out of date by a call to
         blacklist_add or blacklist_remove."""
 

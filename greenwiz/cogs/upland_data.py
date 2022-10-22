@@ -18,7 +18,7 @@ from utils.settings import (
 )
 
 
-def time_stamp(item) -> datetime.timestamp:
+def time_stamp(item: dict) -> datetime:
     string_time = item["created_at"]
     cal = pdt.Calendar()
     timestamp, _ = cal.parseDT(string_time.replace("T", " "), tzinfo=timezone.utc)
@@ -54,11 +54,11 @@ async def visitors(
 async def do_a_run(
     session: ClientSession, props: list, start_time="last week", end_time="now"
 ) -> Counter:
-    cum_visitors = Counter()
+    cumulative_visitors: Counter = Counter()
     for prop in props:
         res = await visitors(session, prop, start=start_time, end=end_time)
-        cum_visitors.update(res)
-    return cum_visitors
+        cumulative_visitors.update(res)
+    return cumulative_visitors
 
 
 class UplandData(MetaCog):
