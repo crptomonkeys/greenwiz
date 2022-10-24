@@ -8,11 +8,9 @@ from typing import Optional, Union
 
 import discord
 from aioeos import EosAccount
-from aiohttp import ContentTypeError
 from discord import TextChannel, Forbidden, HTTPException
-from discord.ext import commands, tasks
+from discord.ext import commands, tasks  # type: ignore
 
-from utils.coin_prices import get_wax_price, get_ban_price
 from utils.cryptomonkey_util import monkeyprinter, nifty
 from utils.exceptions import UnableToCompleteRequestedAction, InvalidInput
 from utils.green_api_wrapper import GreenApi, GreenApiException
@@ -21,7 +19,6 @@ from utils.meta_cog import MetaCog
 from utils.settings import (
     WAX_PRIV_KEY,
     WAX_ACC_NAME,
-    CM_EMOJIS,
     YOSHI_ACC_NAME,
     YOSHI_PRIV_KEY,
     DEFAULT_WAX_COLLECTION,
@@ -32,8 +29,6 @@ from utils.settings import (
 )
 from utils.util import (
     log,
-    load_json_var,
-    write_json_var,
     scope,
     now_stamp,
     calc_msg_activity,
@@ -50,8 +45,6 @@ from wax_chain.wax_util import (
     get_template_id,
     send_link_start_to_finish,
     get_card_dict,
-    update_cache_cards,
-    get_fair_price_for_card,
 )
 from wax_chain.link_deletion import delete_old_links
 from wax_chain.wax_addresses import (
@@ -107,8 +100,8 @@ class Wax(MetaCog):
     async def blacklist(self, ctx: commands.Context, *, provided: Optional[str]):
         """
         Adds an address to the blacklist. They will be excluded from future filtered giveaways.
-        Alternatively, you can provide a file that is either a csv or a .txt file with one address per line with no commas.
-        All valid addresses in the file will be blacklisted.
+        Alternatively, you can provide a file that is either a csv or a .txt file with one
+        address per line with no commas. All valid addresses in the file will be blacklisted.
         """
         return_inline, i_list = await get_addrs_from_content_or_file(
             ctx.message, provided
@@ -125,7 +118,7 @@ class Wax(MetaCog):
             )
         # Mass-blacklist
         specials = await async_get_special_wax_address_list(self.session)
-        to_blacklist, unable, successfully_blacklisted = [], [], []
+        to_blacklist, unable = [], []
         for addr in list(set(i_list)):
             if is_valid_wax_address(addr, valid_specials=specials):
                 to_blacklist.append(addr)
@@ -141,7 +134,7 @@ class Wax(MetaCog):
             for address in to_blacklist
         ]
         results = await asyncio.gather(*tasks)
-        failed = Counter()
+        failed: Counter = Counter()
         for result in results:
             if not result.get("success"):
                 failed[result["exception"]] += 1
@@ -150,7 +143,7 @@ class Wax(MetaCog):
         else:
             to_send = "No addresses were blacklisted."
         if sum(failed.values()) > 1:
-            to_send += f" Failure reasons are:"
+            to_send += " Failure reasons are:"
             for key, value in failed.items():
                 to_send += f"\n{value}x {key}"
         elif sum(failed.values()) == 1:
@@ -366,7 +359,7 @@ class Wax(MetaCog):
     async def cancel_old_links(self, ctx: commands.Context, *, links):
         try:
             links_dict = json.loads(links)
-        except JSONDecodeError:
+        except json.JSONDecodeError:
             raise InvalidInput("Invalid list of claimlink ints.")
         await delete_old_links(ctx, self.wax_con, links_dict)
         await ctx.send("Delete complete.")
@@ -410,7 +403,7 @@ class Wax(MetaCog):
         if success != 0:
             return await ctx.send(link)
 
-        to_send = f"Congratulations! You have won a random cryptomonKey "
+        to_send = "Congratulations! You have won a random cryptomonKey "
         if memo:
             to_send += f"for {memo} "
         to_send += (
@@ -517,7 +510,7 @@ class Wax(MetaCog):
         )
         await msg.edit(content=to_send[:1990])
         await ctx.send(
-            f"Here's a csv of all those miners.",
+            "Here's a csv of all those miners.",
             file=discord.File(f"res/tmp/minersCycle{cycle}.txt"),
         )
 
@@ -537,11 +530,12 @@ class Wax(MetaCog):
         """
         Sends the target member a random cryptomonkey claim link from the cryptomonkeys account.
         Target may be a discord member (will DM a claimlink) or a wax address (will directly transfer assets).
-        If there aren't any stored, tells you so.
-        You can specify a reason after the name.
-        Drop admins such as monKeyprinters may optionally specify a number of cards to send, before the reason but after the
+        If there aren't any stored, tells you so. You can specify a reason after the name. Drop admins such
+        as monKeyprinters may optionally specify a number of cards to send, before the reason but after the
         name. Defaults to 1. (Others can also specify a number, but it will always be overwritten by 1)
         """
+        if num is None:
+            num = 1
         if not 1 <= num <= 10:
             raise InvalidInput("Num must be between 1 and 10.")
 
@@ -553,7 +547,7 @@ class Wax(MetaCog):
             return await send_link_start_to_finish(
                 self.wax_con, self.bot, ctx.message, member, ctx.author, reason, num
             )
-
+        member = str(member)
         if len(member) > 12:
             raise InvalidInput(
                 "Provide either a discord member, a discord user id, or a valid wax address."
@@ -570,7 +564,8 @@ class Wax(MetaCog):
             or ("." in member and member.split(".")[1] in self.bot.special_addr_list)
         ):
             log(
-                f"Sending {num} random cryptomonKeys by direct transfer to wax wallet address {member} for reason {reason}."
+                f"Sending {num} random cryptomonKeys by direct transfer to wax "
+                f"wallet address {member} for reason {reason}."
             )
             # TODO
 
@@ -616,7 +611,8 @@ class Wax(MetaCog):
         *,
         reason: str = None,
     ):
-        """Drop an NFT to approximately the nth respondent in this channel (slightly randomized to avoid abuse)."""
+        """Drop an NFT to approximately the nth respondent in this channel.
+        Slightly randomized to avoid abuse."""
 
         # Determine which collection is being dropped to
         authd, cinfo = determine_collection(ctx.guild, ctx.author, self.bot)
@@ -624,7 +620,8 @@ class Wax(MetaCog):
         # Determine whether the user can send an unlimited number of drops per day
         if authd == 0:
             raise InvalidInput(f"You can't drop {collection}s here.")
-
+        if number is None:
+            number = 10
         counter, resp = 0, None
         await ctx.message.delete()
         if reason is None:
@@ -660,13 +657,6 @@ class Wax(MetaCog):
                     check=check_ch(channel, ctx.author),
                     timeout=60 * 15,
                 )
-                counter += 1
-                self.log(
-                    f"Chatloot - number = {number} counter = {counter}, resp = [{resp.content}/{resp.id} by {resp.author.name}/{resp.author.id}], self.recent_drops = {self.recent_drops}",
-                    "CHLO",
-                )
-                if counter >= number and resp.author.id not in set(self.recent_drops):
-                    break
             except asyncio.TimeoutError:
                 # Send failure message, but only at most once per five minutes per channel
                 if not hasattr(self, "last_timeout"):
@@ -678,9 +668,18 @@ class Wax(MetaCog):
                     return
                 self.last_timeout[channel.id] = time.time()
                 return await channel.send(
-                    f"A loot has been cancelled, either because of not enough chatting or too much spam.",
+                    "A loot has been cancelled, either because of not enough chatting or too much spam.",
                     delete_after=60 * 5,
                 )
+            counter += 1
+            self.log(
+                f"Chatloot - number = {number} counter = {counter}, resp = "
+                f"[{resp.content}/{resp.id} by {resp.author.name}/{resp.author.id}],"
+                f" self.recent_drops = {self.recent_drops}",
+                "CHLO",
+            )
+            if counter >= number and resp.author.id not in set(self.recent_drops):
+                break
         assert resp is not None
         # Prevents the same person from receiving two drops in a row
         self.recent_drops.appendleft(resp.author.id)
@@ -694,9 +693,10 @@ class Wax(MetaCog):
                 await ctx.send(f"Successfully sent loot to {resp.author} in {channel}.")
             # Send response in recieving channel
             return await resp.channel.send(f"Enjoy your loot, {resp.author}!")
-        assert (
-            False
-        ), f"Invalid reward_id {reward_id} reached on attempted loot distribution to {resp.author} by {ctx.author} for {reason}."
+        raise AssertionError(
+            f"Invalid reward_id {reward_id} reached on attempted loot distribution"
+            f" to {resp.author} by {ctx.author} for {reason}."
+        )
 
     @chatloot.error
     async def chatloot_error(self, ctx: commands.Context, error):

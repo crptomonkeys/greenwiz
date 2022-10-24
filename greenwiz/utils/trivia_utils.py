@@ -118,9 +118,9 @@ def n_m(n: int) -> str:
 
 def n_m_op(n: Union[int, str]) -> str:
     """Converts n to its corresponding card if it is a string, otherwise leaves it as is."""
-    if type(n) is int:
+    if isinstance(n, int):
         return n_m(n)
-    return n
+    return str(n)
 
 
 def _rand(_min=1, _max=10000) -> int:
@@ -148,9 +148,9 @@ def randomcalc(difficulty: int = 1) -> tuple[list, int]:
         if op == "/":
             num1, answer = num1 * num2, num1
         else:
-            answer = ops.get(op)(num1, num2)
+            answer = ops[op](num1, num2)
 
-        return [num1, op, num2], answer
+    return [num1, op, num2], answer
     # formula = []
     # for i in range(1, difficulty+1):
     #     mult_step = random.choice([True, False])

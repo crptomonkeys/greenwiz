@@ -5,7 +5,7 @@ contract = "atomictoolsx"
 
 
 def announcelink(
-    creator: str, key: str, asset_ids: [int], memo: str, authorization=None
+    creator: str, key: str, asset_ids: list[int], memo: str, authorization=None
 ) -> types.EosAction:
     if authorization is None:
         authorization = []

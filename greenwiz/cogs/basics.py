@@ -5,7 +5,6 @@ import discord
 import pytz
 from discord.ext import commands
 
-import utils.settings
 from utils.meta_cog import MetaCog
 from utils.util import log, scope, now_stamp
 

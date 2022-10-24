@@ -30,7 +30,7 @@ class DeployNotif(MetaCog):
                 f"Failed to send deployment notification, code {result.status}.", "WARN"
             )
         else:
-            self.log(f"Deployment notification successfully sent.")
+            self.log("Deployment notification successfully sent.")
         await super().on_ready()
 
 

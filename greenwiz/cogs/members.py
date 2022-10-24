@@ -3,7 +3,7 @@ from discord.ext import commands
 
 from utils.meta_cog import MetaCog
 from utils.settings import BASIC_PERMS, SIGNIFICANT_PERMS
-from utils.util import log, scope, embed_footer, now_stamp
+from utils.util import scope, embed_footer, now_stamp
 
 
 class Members(MetaCog):
@@ -34,7 +34,8 @@ class Members(MetaCog):
         # assign caller of command if no one is chosen
         if not member:
             member = ctx.author
-
+        if not isinstance(member, discord.Member):
+            raise AssertionError("member should be a discord.Member object.")
         # embed it
         embed = discord.Embed(title="", description="", color=member.color)
         embed.set_author(
@@ -63,7 +64,8 @@ class Members(MetaCog):
             if len(nperms) < 1:
                 nperms += "None"
             embed.add_field(name="Notable Perms:", value=nperms)
-        if detail > 2:  # include the rest of the perms
+        if detail > 2:
+            # include the rest of the perms
             perms = "\n".join(
                 perm
                 for perm, value in member.guild_permissions

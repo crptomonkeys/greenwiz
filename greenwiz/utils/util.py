@@ -4,7 +4,7 @@ from datetime import datetime, timezone, timedelta
 
 import discord
 
-from utils.exceptions import InvalidInput, InvalidResponse
+from utils.exceptions import InvalidInput
 
 # Returns current timestamp in the desired format, in this case MM/DD/YYYY HH:MM:SS
 from utils.settings import (
@@ -167,7 +167,7 @@ def log(message: typing.Any, severity="INFO") -> None:
     print(f"[{severity}] {repr(message)}")
 
 
-def to_file(text=None) -> discord.File:
+def to_file(text: str = "") -> discord.File:
     """
     Convert a string to a discord File object.
     :param text:
@@ -180,7 +180,7 @@ def to_file(text=None) -> discord.File:
     return discord.File("./res/long_result.txt")
 
 
-def load_words() -> [str]:
+def load_words() -> list[str]:
     """Loads up the top 20,000 most common words into a nice list."""
     with open("res/top_20k_words.txt", encoding="utf-8", errors="replace") as word_file:
         valid_words = list(set(word_file.read().split()))
@@ -203,7 +203,6 @@ def today() -> str:
 
 async def usage_react(num: int, message: discord.Message):
     """Converts a number from 1-9 to an CM_EMOJIS."""
-    reactions_to_add = []
     if num < 10:
         try:
             await message.add_reaction(NUMBER_REACTIONS[num])
@@ -305,7 +304,7 @@ async def save_temp_then_share(ctx, content: str, message: str, filename: str) -
 
 async def get_addrs_from_content_or_file(
     message: discord.Message, provided: str = None
-) -> (bool, [str]):
+) -> tuple[bool, list[str]]:
     """Returns a tuple of bool and list of str.
     The bool is whether the results should be relayed inline or in a file.
     The list is a list of addresses from either the message attachment, if available, or the message content."""
@@ -320,7 +319,7 @@ async def get_addrs_from_content_or_file(
     return True, i_list
 
 
-async def addrs_from_file(file: discord.File) -> [str]:
+async def addrs_from_file(file: discord.Attachment) -> list[str]:
     """Reads a discord attachment and returns a list of strings of addresses in it."""
     if file.filename[-4:] not in [".txt", ".csv"]:
         raise InvalidInput("Please provide a .txt or .csv file, I can't read that one.")
@@ -329,14 +328,14 @@ async def addrs_from_file(file: discord.File) -> [str]:
     return await addrs_from_txt(file)
 
 
-async def addrs_from_txt(file: discord.File) -> [str]:
+async def addrs_from_txt(file: discord.Attachment) -> list[str]:
     """Reads a txt discord attachment and returns a list of strings of addresses in it."""
     file_bytes = await file.read()
     contents = file_bytes.decode("utf-8").split("\n")
     return [i.lower() for i in contents]
 
 
-async def addrs_from_csv(file: discord.File) -> [str]:
+async def addrs_from_csv(file: discord.Attachment) -> list[str]:
     """Reads a csv discord atachment and returns a list of strings of addresses in it."""
     file_bytes = await file.read()
     contents = file_bytes.decode("utf-8").split(",")

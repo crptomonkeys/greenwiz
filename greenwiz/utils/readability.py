@@ -2,7 +2,7 @@ vowels = ["a", "i", "e", "o", "u", "y", "A", "E", "I", "O", "U", "y"]
 
 
 def is_vowel(char) -> int:
-    return 1 if x in vowels else 0
+    return 1 if char in vowels else 0
 
 
 def total_syllables(text) -> float:

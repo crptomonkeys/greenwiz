@@ -166,7 +166,11 @@ def setversion():
 
 
 def transfer(
-    from_addr: str, to_addr: str, asset_ids: [int], memo: str = "", authorization=None
+    from_addr: str,
+    to_addr: str,
+    asset_ids: list[int],
+    memo: str = "",
+    authorization=None,
 ) -> types.EosAction:
     if authorization is None:
         authorization = []

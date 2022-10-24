@@ -10,13 +10,13 @@ atomic_api = base_atomic_api + "atomicassets/v1/"
 market_api = base_atomic_api + "atomicmarket/v1/"
 
 
-def ema(close, prev_close, num):
+def ema(close, prev_close, num) -> float:
     """Updates an exponential moving average one step."""
     ema_weight = 2 / float(num + 1)
     return ((close - prev_close) * ema_weight) + prev_close
 
 
-def fair_est(ema_: float, lowest_offer: float):
+def fair_est(ema_: float, lowest_offer: float) -> float:
     """Attempts to calculate an estimate of fair price for a template id by taking the geometric mean of lowest
     offer and exponential moving average of recent sales."""
     if lowest_offer < 0:
@@ -38,7 +38,7 @@ def fair_est(ema_: float, lowest_offer: float):
 
 async def get_assets_from_template(
     template_id: int, owner: str, session: aiohttp.ClientSession
-) -> [int]:
+) -> list[int]:
     """Helper function to get all assets of specified template id owned by specified account, or all from that
     account if template id is 0"""
     if template_id == 0:
@@ -51,11 +51,13 @@ async def get_assets_from_template(
     return ids
 
 
-async def get_owners(template_id: int, session: aiohttp.ClientSession, num=1000):
+async def get_owners(
+    template_id: int, session: aiohttp.ClientSession, num=1000
+) -> tuple[int, list[str]]:
     """
     Returns a tuple, the template id and a list of all the current owners of the card with that template id.
     """
-    prep_list = []
+    prep_list: list[str] = []
     for i in range(1, ceil(num // 1000) + 2):
         params = {
             "limit": 1000,
@@ -80,7 +82,7 @@ async def get_owners(template_id: int, session: aiohttp.ClientSession, num=1000)
     return template_id, prep_list
 
 
-async def get_sales(template_id: int, session: aiohttp.ClientSession):
+async def get_sales(template_id: int, session: aiohttp.ClientSession) -> list[float]:
     """Returns a list of past sale prices in WAX for the specified template_id"""
     params = {"symbol": "WAX", "template_id": template_id}
     async with session.get(market_api + "prices/sales", params=params) as response:
@@ -89,7 +91,9 @@ async def get_sales(template_id: int, session: aiohttp.ClientSession):
     return [int(item["price"]) / (10 ** item["token_precision"]) for item in data]
 
 
-async def get_lowest_current_offer(template_id: int, session: aiohttp.ClientSession):
+async def get_lowest_current_offer(
+    template_id: int, session: aiohttp.ClientSession
+) -> float:
     """Returns the lowest current market offer in WAX for the specified template_id"""
     params = {
         "state": 1,
@@ -115,7 +119,7 @@ async def get_lowest_current_offer(template_id: int, session: aiohttp.ClientSess
 
 async def get_geometric_regressed_sale_price(
     template_id: int, session: aiohttp.ClientSession
-):
+) -> float:
     """Returns the exponential moving average of sales price based on recent sales for a given template id"""
     prices = await get_sales(template_id, session)
     num_data_points = len(prices)

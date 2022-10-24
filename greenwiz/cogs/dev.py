@@ -5,7 +5,6 @@ import textwrap
 import time
 import timeit
 import typing
-from datetime import datetime
 
 import discord
 from discord.ext import commands
@@ -70,7 +69,11 @@ class Dev(MetaCog):
     @commands.command(name="sendmsg", aliases=["dm", "message"])
     @commands.is_owner()
     async def send(
-        self, ctx: commands.Context, user: discord.User, *, message: str = None
+        self,
+        ctx: commands.Context,
+        user: discord.User,
+        *,
+        message: typing.Optional[str] = None,
     ):
         """
         DM someone from the bot.
@@ -117,10 +120,13 @@ class Dev(MetaCog):
     @autho.command()
     @commands.is_owner()
     async def check(
-        self, ctx: commands.Context, user: discord.User = None, detail: str = ""
+        self,
+        ctx: commands.Context,
+        user: typing.Optional[discord.User] = None,
+        detail: str = "",
     ):
         """Check someone's auth level. Requires auth 2."""
-        if not user:
+        if user is None:
             user = ctx.author
         try:
             auth_level = await self.storage[ctx.guild.id].get_auth(user)
@@ -153,11 +159,11 @@ class Dev(MetaCog):
         target_auth = await self.storage[ctx.guild].get_auth(user)
         if invoker_auth <= level:
             return await ctx.send(
-                f"You can not set someone's auth level higher than or equal to your own."
+                "You can not set someone's auth level higher than or equal to your own."
             )
         if target_auth >= invoker_auth:
             return await ctx.send(
-                f"You can't change the auth level of someone with your auth level or higher."
+                "You can't change the auth level of someone with your auth level or higher."
             )
 
         await self.storage[ctx.guild].set_auth(user, level)
@@ -264,18 +270,18 @@ class Dev(MetaCog):
         This command is owner only for obvious reasons.
         """
         self.log(f"Evaluating {cmd} for {ctx.author}.", "CMMD")
-        starttime = time.time_ns()
+        starttime: float = time.time_ns()
         cmd = cmd.strip("` ")
         if cmd[0:2] == "py":  # Cut out py for ```py``` built in code blocks
             cmd = cmd[2:]
         # add a layer of indentation
         cmd = textwrap.indent(cmd, "    ")
         # wrap in async def body
-        body = f"async def evaluation():\n{cmd}"
-        parsed = ast.parse(body)
-        body = parsed.body[0].body
+        body: str = f"async def evaluation():\n{cmd}"
+        parsed: ast.AST = ast.parse(body)
+        body: str = parsed.body[0].body  # type: ignore
         insert_returns(body)
-        env = {
+        env: dict[str, typing.Any] = {
             "bot": ctx.bot,
             "discord": discord,
             "commands": commands,
@@ -290,7 +296,7 @@ class Dev(MetaCog):
         env.update(globals())
         exec(compile(parsed, filename="<ast>", mode="exec"), env)
 
-        result = await eval(f"evaluation()", env)
+        result = await eval("evaluation()", env)
         endtime = time.time_ns()
         elapsed_ms = int((endtime - starttime) / 10000) / 100
         if elapsed_ms > 100:
@@ -445,7 +451,7 @@ class Dev(MetaCog):
             await asyncio.sleep(2)
             await user.send(f"{name} told you to leave them alone.")
             await asyncio.sleep(4)
-            await user.send(f"It is a very good idea for you to do so.")
+            await user.send("It is a very good idea for you to do so.")
             await asyncio.sleep(10)
             await user.send("Seriously.")
             await asyncio.sleep(10)

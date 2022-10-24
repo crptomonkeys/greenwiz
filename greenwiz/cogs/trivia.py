@@ -167,7 +167,12 @@ class Trivia(MetaCog):
                 f"I've closed the channel. Ready for next question from {user.mention}."
             )
         res = await self.storage[ctx.guild].return_and_reset_trivia()
-        sorted_res = sorted(res.items(), key=lambda x: x[1], reverse=True)
+
+        def get_1(x: tuple[int, int]) -> int:
+            """Not a lambda for mypy"""
+            return x[1]
+
+        sorted_res = sorted(res.items(), key=get_1, reverse=True)
         result = {ctx.guild.get_member(id_): score for id_, score in sorted_res}
         to_send = f"**Results of {topic} by {user.mention}**\n"
         place = 1

@@ -1,16 +1,13 @@
-import asyncio
-from random import randrange
 from typing import Optional, Union
 
 import discord
-from discord.ext import commands, tasks
+from discord.ext import commands
 
 from utils.cryptomonkey_util import nifty
 from utils.util import utcnow, load_words
 from utils.exceptions import InvalidInput
 from utils.meta_cog import MetaCog
 from utils.util import scope
-from wax_chain.wax_addresses import async_get_special_wax_address_list
 from wax_chain.wax_util import get_card_dict
 
 
@@ -66,6 +63,8 @@ class Test(MetaCog):
         MonkeyPrinters may optionally specify a number of cards to send, before the reason but after the
         name. Defaults to 1. (Others can also specify a number, but it will always be overwritten by 1)
         """
+        if num is None:
+            num = 1
         if not 1 <= num <= 10:
             raise InvalidInput("Num must be between 1 and 10.")
 
@@ -74,9 +73,9 @@ class Test(MetaCog):
                 f"Interpreted test command as: Send {num} random cryptomonKeys to discord user"
                 f" {member} asa DMed claimlink for reason {reason}."
             )
+        member = str(member)
         if len(member) > 12:
             raise InvalidInput("Member must be either a discord user or a wax address.")
-
         if ".wam" in member:
             return await ctx.send(
                 f"Interpreted test command as: Send {num} random cryptomonKeys by direct transfer to "
@@ -92,22 +91,26 @@ class Test(MetaCog):
                 f"Interpreted test command as: Send {num} random cryptomonKeys by direct transfer "
                 f"to valid top level wallet address {member} for reason {reason}."
             )
-        elif "." in member and member.split(".")[1] in self.bot.special_addr_list:
+        elif (
+            isinstance(member, str)
+            and "." in member
+            and member.split(".")[1] in self.bot.special_addr_list
+        ):
             return await ctx.send(
                 f"Interpreted test command as: Send {num} random cryptomonKeys by direct transfer "
                 f'to valid subdomain wallet address {member} (subdomain of {member.split(".")[1]}) '
                 f"for reason {reason}."
             )
         await ctx.send(
-            f"Failed to interpret member. It is a string of the correct length to be a valid wax address "
-            f"in theory but isn't actually a valid wax address."
+            "Failed to interpret member. It is a string of the correct length to be a"
+            " valid wax address in theory but isn't actually a valid wax address."
         )
 
     @commands.command(description="Finds words in a random key.")
     @commands.check(nifty())
     @commands.check(scope())
     async def find_words(
-        self, ctx: commands.Context, min_length: Optional[int] = 4, *, text
+        self, ctx: commands.Context, min_length: int = 4, *, text: str
     ):
 
         test_strings = text.split()

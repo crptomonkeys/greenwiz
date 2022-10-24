@@ -1,7 +1,4 @@
-import ast
-import asyncio
 import itertools
-import time
 from datetime import datetime, timezone, timedelta
 
 import discord
@@ -41,7 +38,7 @@ class About(MetaCog):
     @commands.hybrid_command()
     async def about(self, ctx):
         """Tells you information about the bot itself."""
-        _name = f"Built by Vyryn for cryptomonKeys.cc"
+        _name = "Built by Vyryn for cryptomonKeys.cc"
         if self.bot.settings.ENV != "prod":
             _name += f" (Running in {self.bot.settings.ENV})"
         repo = pygit2.Repository(".git")
