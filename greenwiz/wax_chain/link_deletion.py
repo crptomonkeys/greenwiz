@@ -1,7 +1,7 @@
 import asyncio
 
 
-async def delete_old_links(ctx, wax_con, links_to_delete: list):
+async def delete_old_links(ctx, wax_con, links_to_delete: list[str]):
     deleted = 0
     for link_id in links_to_delete:
         result, tx_id = await wax_con.cancel_claimlink(int(link_id))

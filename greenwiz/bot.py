@@ -9,7 +9,7 @@ import pathlib
 import traceback
 import sys
 from collections import Counter, defaultdict
-from typing import Union
+from typing import Union, Callable
 
 import aiohttp
 import aioredis
@@ -77,7 +77,7 @@ class Bot(commands.Bot):
         """Task error handler."""
         exc = context.get("exception", None)
         if exc:
-            logging.getLogger(__name__).error("Task failed!", exc_info=exc)
+            logging.getLogger(__name__).error("Task failed!", exc_info=exc)  # type: ignore
 
     async def setup_hook(self) -> None:
         """Initialize session and redis connection, and load extensions, then run."""
@@ -166,7 +166,8 @@ class Bot(commands.Bot):
             activity=discord.Game(f"{reason}..."),
         )
 
-        await self.session.close()
+        if isinstance(self.session, aiohttp.ClientSession):
+            await self.session.close()
         await self.redis.close()
         await self.change_presence(status=discord.Status.offline)
 
@@ -186,7 +187,7 @@ class Bot(commands.Bot):
         await super().add_cog(cog)
         self.log(f"Loaded cog {cog.qualified_name}.")
 
-    async def get_prefix(self, message: discord.Message) -> [str]:
+    async def get_prefix(self, message: discord.Message) -> Union[Callable, str]:
         """Returns the prefix for a given message context."""
         if message.guild is None:
             return commands.when_mentioned_or("")(self, message)

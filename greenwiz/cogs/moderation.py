@@ -1,6 +1,7 @@
 import asyncio
 from datetime import datetime
 from difflib import get_close_matches
+from typing import Union
 
 import discord
 from discord import Forbidden, HTTPException
@@ -33,7 +34,7 @@ class Moderation(MetaCog):
             return
         if message.author.bot:
             return
-        flag = False
+        flag: Union[bool, str] = False
         banned_phrases = [
             "uni-airdrop.org",
             "uni-airdrop.io",
@@ -83,7 +84,7 @@ class Moderation(MetaCog):
             and "?key=" in content
             and "atomichub.io" not in content
         ):
-            flag = "posting scam website links"
+            flag = "posting scam claim links"
         if (
             not flag
             and "neftyblocks." in content

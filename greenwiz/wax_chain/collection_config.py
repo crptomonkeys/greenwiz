@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Callable, Any, Union
+from typing import Callable, Any, Union, Optional
 
 from discord import User
 
@@ -102,8 +102,8 @@ class CollectionData:
     announce_ch: int = DEFAULT_FALLBACK_CHANNEL
     drop_func: Callable = _drop_func
     admin_func: Callable = _admin_func
-    intro_role: int = None
-    intro_ch: int = None
+    intro_role: Optional[int] = None
+    intro_ch: Optional[int] = None
     daily_limit: int = 5
     link_message_append: str = (
         "WARNING: Tip bot claimlinks may be cancelled 91 days after issuance."
@@ -120,17 +120,17 @@ def get_collection_info(
     collection: Union[str, CollectionData], full: bool = False
 ) -> CollectionData:
     """Fetch configuration data for a given wax_chain collection"""
-    if type(collection) == CollectionData:
+    if isinstance(collection, CollectionData):
         collection = collection.collection
     res = collections.get(collection, None)
     if res is None:
         raise UnableToCompleteRequestedAction
-    res = CollectionData(**res)
+    result = CollectionData(**res)
     if not full:
         # Reduce opportunities for sensitive data to accidentally leak in a debugging printout or similar
         # by only including private key in calls that explicitly ask for it.
-        del res.priv_key
-    return res
+        del result.priv_key
+    return result
 
 
 def adjust_daily_limit(collection: str, limit: int) -> None:
@@ -143,7 +143,7 @@ def get_guild_collection_info(guild_id: int) -> CollectionData:
     return get_collection_info(active_collections.get(guild_id, DEFAULT_WAX_COLLECTION))
 
 
-def determine_collection(guild: Any, sender: User, bot) -> (bool, CollectionData):
+def determine_collection(guild: Any, sender: User, bot) -> tuple[int, CollectionData]:
     """Determine which collection a user can/wants to send cards from based on the guild and user. Also determines
     level of user's authorization: 0 is not auth'd for this collection, 1 is normal auth, 2 is unlimited."""
     if not guild:

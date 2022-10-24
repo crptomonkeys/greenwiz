@@ -167,7 +167,7 @@ def log(message: typing.Any, severity="INFO") -> None:
     print(f"[{severity}] {repr(message)}")
 
 
-def to_file(text: str = None) -> discord.File:
+def to_file(text: str = "") -> discord.File:
     """
     Convert a string to a discord File object.
     :param text:
@@ -304,7 +304,7 @@ async def save_temp_then_share(ctx, content: str, message: str, filename: str) -
 
 async def get_addrs_from_content_or_file(
     message: discord.Message, provided: str = None
-) -> (bool, [str]):
+) -> tuple[bool, list[str]]:
     """Returns a tuple of bool and list of str.
     The bool is whether the results should be relayed inline or in a file.
     The list is a list of addresses from either the message attachment, if available, or the message content."""
@@ -319,7 +319,7 @@ async def get_addrs_from_content_or_file(
     return True, i_list
 
 
-async def addrs_from_file(file: discord.File) -> [str]:
+async def addrs_from_file(file: discord.Attachment) -> list[str]:
     """Reads a discord attachment and returns a list of strings of addresses in it."""
     if file.filename[-4:] not in [".txt", ".csv"]:
         raise InvalidInput("Please provide a .txt or .csv file, I can't read that one.")
@@ -328,14 +328,14 @@ async def addrs_from_file(file: discord.File) -> [str]:
     return await addrs_from_txt(file)
 
 
-async def addrs_from_txt(file: discord.File) -> [str]:
+async def addrs_from_txt(file: discord.Attachment) -> list[str]:
     """Reads a txt discord attachment and returns a list of strings of addresses in it."""
     file_bytes = await file.read()
     contents = file_bytes.decode("utf-8").split("\n")
     return [i.lower() for i in contents]
 
 
-async def addrs_from_csv(file: discord.File) -> [str]:
+async def addrs_from_csv(file: discord.Attachment) -> list[str]:
     """Reads a csv discord atachment and returns a list of strings of addresses in it."""
     file_bytes = await file.read()
     contents = file_bytes.decode("utf-8").split(",")

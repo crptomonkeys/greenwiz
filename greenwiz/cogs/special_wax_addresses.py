@@ -1,4 +1,4 @@
-from discord.ext import tasks
+from discord.ext import tasks  # type: ignore
 
 from utils.meta_cog import MetaCog
 from wax_chain.wax_addresses import async_get_special_wax_address_list

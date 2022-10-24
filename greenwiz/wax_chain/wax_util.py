@@ -22,7 +22,7 @@ import hashlib
 import traceback
 from json import JSONDecodeError, dumps
 from time import time
-from typing import List, Union
+from typing import List, Union, Optional
 
 import aiohttp
 import discord
@@ -178,8 +178,11 @@ full_api_weighted_list = [
     },
 ]
 
-wax_dict, cache_ages, cache_cards, card_cache_age = {}, {}, {}, 0
-template_id_price_cache, template_id_price_cache_ages = {}, {}
+wax_dict: dict[str, dict[int, dict[str, str]]] = {}
+cache_ages: dict[str, dict[int, float]] = {}
+cache_cards, card_cache_age = {}, 0
+template_id_price_cache: dict[int, tuple[int, float]] = {}
+template_id_price_cache_ages: dict[int, float] = {}
 
 
 # https://validate.eosnation.io/wax/reports/endpoints.html
@@ -326,7 +329,7 @@ class WaxConnection:
     async def execute_transaction(
         self,
         actions: Union[EosAction, List[EosAction]],
-        context_free_bytes=bytes(32),
+        context_free_bytes: bytes = bytes(32),
         sender_ac: str = DEFAULT_WAX_COLLECTION,
     ) -> dict:
         """Attempts to sign and push a transaction to one API. Failing that, it goes to another all the way down the
@@ -335,7 +338,8 @@ class WaxConnection:
         if not isinstance(actions, list):
             actions = [actions]
         failed_rpcs, suc = set(), "None"
-        block, chain_id = None, None
+        chain_id: bytes = b""
+        block: Optional[dict] = None
         self.log(f"Executing a transaction, actions: {actions}")
 
         # Try getting the head block from each rpc until one succeeds
@@ -356,7 +360,7 @@ class WaxConnection:
                     action.data = binascii.unhexlify(abi_bin["binargs"])
                 suc = rpc.URL
                 self.log(
-                    f"Successfully got head block {str(block)[:2000]}, chain_id {chain_id} from {rpc.URL}."
+                    f"Successfully got head block {str(block)[:2000]}, {chain_id=} from {rpc.URL}."
                 )
                 break
             except (
@@ -372,11 +376,11 @@ class WaxConnection:
                 KeyError,
             ) as e:
                 self.log(f"{e} error attempting to set up a transaction with {rpc.URL}")
-                if e is None:
-                    trace = ""
-                else:
+                if e is not None:
                     trace = e.__traceback__
-                lines = traceback.format_exception(type(e), e, trace)
+                    lines = traceback.format_exception(type(e), e, trace)
+                else:
+                    lines = [""]
                 traceback_text = "```py\n"
                 traceback_text += "".join(lines)
                 traceback_text += "\n```"
@@ -402,13 +406,13 @@ class WaxConnection:
 
         # Serialize transaction just once for all APIs so it will be idempotent, very important if  sending to
         # several nodes.
-        serialized_transaction = serializer.serialize(transaction)
+        bytes_serialized_transaction: bytes = serializer.serialize(transaction)
 
         digest = hashlib.sha256(
-            b"".join((chain_id, serialized_transaction, context_free_bytes))
+            b"".join((chain_id, bytes_serialized_transaction, context_free_bytes))
         ).digest()
         signatures = [self.wax_ac[sender_ac].key.sign(digest)]
-        serialized_transaction = binascii.hexlify(serialized_transaction).decode()
+        serialized_transaction = binascii.hexlify(bytes_serialized_transaction).decode()
         self.log(f"Serialized transaction {transaction}, creating broadcast tasks.")
         loop = asyncio.get_event_loop()
         future = loop.create_future()  # for the callback upon success
@@ -493,7 +497,7 @@ class WaxConnection:
     async def transfer_assets(
         self,
         receiver: str,
-        asset_ids: [int],
+        asset_ids: list[int],
         sender: str = "Unknown",
         sender_ac: str = DEFAULT_WAX_COLLECTION,
         memo: str = None,
@@ -537,9 +541,11 @@ class WaxConnection:
 
         return await self.execute_transaction(actions, sender_ac=collection)
 
-    def update_weighted_history_rpc(self, faulty: EosJsonRpcWrapper) -> None:
+    def update_weighted_history_rpc(self, faulty: Optional[EosJsonRpcWrapper]) -> None:
         """Does one update of the semi-random weighted rpc list by removing the faulty entry and adding a random one
         if the selection is too thin or too small."""
+        if faulty is None:
+            return
         try:
             self.history_rpc.remove(faulty)
         except ValueError:
@@ -555,11 +561,9 @@ class WaxConnection:
         self.log(
             f"Removing {len(to_remove)} EosJsonRpcWrappers from the semi-random weighted list as faulty."
         )
-        [
-            self.history_rpc.remove(rpc_)
-            for rpc_ in self.history_rpc
-            if rpc_.URL == faulty
-        ]
+        for rpc_ in self.history_rpc:
+            if rpc_.URL == faulty:
+                self.history_rpc.remove(rpc_)
 
     async def get_link_id_and_confirm_claimlink_creation(self, tx_id) -> str:
         """Attempts to confirm that a claimlink was successfully created and get its link_id to
@@ -567,7 +571,7 @@ class WaxConnection:
         self.log("Generating a claimlink and attempting to confirm its creation.")
         cycles = 0
         params = {"id": tx_id}
-        selected = ""
+        selected: Optional[EosJsonRpcWrapper] = None
         while cycles < 30:
             sleep_time = min(2**cycles, 64)
             self.log(
@@ -665,7 +669,7 @@ class WaxConnection:
         self,
         link_id: int,
         collection: str = DEFAULT_WAX_COLLECTION,
-    ) -> bool:
+    ) -> tuple[bool, str]:
         """Cancels the claimlink with the specified id."""
         self.log(f"Cancelling claimlink {link_id}.")
         actions = [
@@ -689,11 +693,11 @@ class WaxConnection:
 
     async def create_claimlink(
         self,
-        asset_ids: [int],
+        asset_ids: list[int],
         memo=None,
         wait_for_confirmation=True,
         collection: str = DEFAULT_WAX_COLLECTION,
-    ) -> (int, str):
+    ) -> str:
         """Creates and returns a claimlink for the specified asset ids."""
         if not memo:
             memo = "NFT Tip Bot reward claimlink."
@@ -915,7 +919,7 @@ async def send_link_start_to_finish(
     wax_con,
     bot_,
     message: discord.Message,
-    member: Union[discord.User, discord.Member],
+    member: discord.Member,
     sender: Union[discord.User, discord.Member],
     reason: str,
     num: int = 1,
@@ -944,7 +948,7 @@ async def send_link_start_to_finish(
     # completion.
     intro, introduced = False, None
     if (
-        cinfo.intro_role and cinfo.intro_ch
+        cinfo.intro_role and cinfo.intro_ch and isinstance(message.guild, discord.Guild)
     ):  # Only consider an intro role if one is configured for this collection
         introduced = message.guild.get_role(cinfo.intro_role)
         if message.channel.id == cinfo.intro_ch:
@@ -985,9 +989,10 @@ async def send_link_start_to_finish(
                 await usage_react(used, message)
             finally:
                 bot_.drop_send_reentrancy[sender.id] = False
-            return await message.channel.send(
+            await message.channel.send(
                 f"Command usages today: {used + 1}/{cinfo.daily_limit}"
             )
+            return -1
 
     try:
         await message.add_reaction("⌛")
@@ -1014,6 +1019,8 @@ async def send_link_start_to_finish(
     if authd < 2:
         await usage_react(used, message)
 
+    if not isinstance(member, discord.ext.commands.Snowflake):
+        raise AssertionError("Guild member' should always be a Member.")
     while intro:
         # To ensure it gets added if discord messes up initially
         await member.add_roles(introduced)
@@ -1097,7 +1104,7 @@ async def get_card_dict(
                     )
                 )
             )
-        responses = await asyncio.gather(
+        responses: list[tuple[int, list[str]]] = await asyncio.gather(
             *_tasks
         )  # a list of the list of owners of each card
         try:
@@ -1105,9 +1112,9 @@ async def get_card_dict(
         except KeyError:
             cache_ages[collection] = {}
             cache_ages[collection][page] = time()
-        for card_id, response in responses:
+        for card_id, _response in responses:
             max_card = templates[card_id]["max_supply"]
-            undistributed = response.count(base_addr) + (
+            undistributed: int = _response.count(base_addr) + (
                 max_card - templates[card_id]["issued_supply"]
             )
             if max_card == 0:
@@ -1132,11 +1139,16 @@ async def get_card_dict(
                     get_fair_price_for_card(card_id, session, detail=True)
                 )
             )
-        responses = await asyncio.gather(*_tasks)
-        for card_id, market, sale_ema, lowest_offer in responses:
-            wax_dict[collection][card_id]["fair_price"] = market
-            wax_dict[collection][card_id]["sale_ema"] = sale_ema
-            wax_dict[collection][card_id]["lowest_offer"] = lowest_offer
+        new_responses = await asyncio.gather(*_tasks)
+        for combined_resp in new_responses:
+            # Values are split out like this for type checker
+            _card_id: int = combined_resp[0]
+            market: float = combined_resp[1]
+            sale_ema: float = combined_resp[2]
+            lowest_offer: float = combined_resp[3]
+            wax_dict[collection][_card_id]["fair_price"] = str(market)
+            wax_dict[collection][_card_id]["sale_ema"] = str(sale_ema)
+            wax_dict[collection][_card_id]["lowest_offer"] = str(lowest_offer)
 
     return wax_dict[collection]
 
@@ -1188,7 +1200,7 @@ async def get_fair_price_for_card(
     session: aiohttp.ClientSession,
     detail: bool = False,
     force: bool = False,
-):
+) -> Union[float, tuple[int, float, float, float]]:
     if 0 < template_id < 1000:
         template_id = await get_template_id(template_id, session)
     global template_id_price_cache_ages, template_id_price_cache
