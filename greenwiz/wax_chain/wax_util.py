@@ -1019,7 +1019,7 @@ async def send_link_start_to_finish(
     if authd < 2:
         await usage_react(used, message)
 
-    if not isinstance(member, discord.ext.commands.Snowflake):
+    if not isinstance(member, discord.abc.Snowflake):
         raise AssertionError("Guild member' should always be a Member.")
     while intro:
         # To ensure it gets added if discord messes up initially
