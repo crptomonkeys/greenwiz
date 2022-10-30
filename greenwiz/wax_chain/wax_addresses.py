@@ -76,6 +76,8 @@ def is_valid_wax_address(addr: str, valid_specials: Optional[set] = None) -> boo
     match = re.match(r"[a-z1-5\.]{1,12}", addr, flags=re.I)
     if match is None:
         return False
+    if match.group() != addr:
+        return False
     if len(match.group()) == 12:
         return True
     if match.group() in system_accounts:
