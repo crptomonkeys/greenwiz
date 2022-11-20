@@ -14,7 +14,7 @@ WAX_CACHE_TIME = 60
 DEFAULT_WAX_COLLECTION = "crptomonkeys"
 # The wax permissions for each type of use
 TIP_ACC_PERMISSION = "claimlink"
-SALT_ACC_PERMISSION = "salt"
+SALT_ACC_PERMISSION = "match"
 MINT_ACC_PERMISSION = "mint"
 # The minimum number of seconds after last activity to have a message count as activity for spam filtering purposes
 ACTIVITY_COOLDOWN = 10
@@ -189,6 +189,7 @@ try:
     YOSHI_ACC_NAME = settings_priv.YOSHI_ACC_NAME
     YOSHI_PRIV_KEY = settings_priv.YOSHI_PRIV_KEY
     MONKEYMATCH_ACC_NAME = settings_priv.MONKEYMATCH_ACC_NAME
+    MONKEYMATCH_PERM = settings_priv.MONKEYMATCH_PERM
     MONKEYMATCH_PRIV_KEY = settings_priv.MONKEYMATCH_PRIV_KEY
     BLACKLIST_AUTH_CODE = settings_priv.BLACKLIST_AUTH_CODE
     SURVEY_1_SHEET_CODE = settings_priv.SURVEY_1_SHEET_CODE
@@ -217,6 +218,7 @@ except ImportError:
     YOSHI_ACC_NAME = os.getenv("YOSHI_ACC_NAME")
     YOSHI_PRIV_KEY = os.getenv("YOSHI_PRIV_KEY")
     MONKEYMATCH_ACC_NAME = os.getenv("MONKEYMATCH_ACC_NAME")
+    MONKEYMATCH_PERM = os.getenv("MONKEYMATCH_PERM")
     MONKEYMATCH_PRIV_KEY = os.getenv("MONKEYMATCH_PRIV_KEY")
     BLACKLIST_AUTH_CODE = os.getenv("BLACKLIST_AUTH_CODE")
     SURVEY_1_SHEET_CODE = os.getenv("SURVEY_1_SHEET_CODE")
