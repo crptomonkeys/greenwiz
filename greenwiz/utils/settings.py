@@ -83,6 +83,7 @@ CRYPTOMONKEY_DROP_ADMINS = [
     846686858981146627,  # Mayor
     707092320767705122,  # Aku
     533663361770979369,  # WhiteFlag
+    186285429077573632,  # mithc
 ]
 
 # ============= Defaults for Per-Server Settings ====================
