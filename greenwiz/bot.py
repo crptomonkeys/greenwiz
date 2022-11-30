@@ -9,7 +9,7 @@ import pathlib
 import traceback
 import sys
 from collections import Counter, defaultdict
-from typing import Union, Callable
+from typing import Union, Callable, Any
 
 import aiohttp
 import aioredis
@@ -28,17 +28,15 @@ class Bot(commands.Bot):
 
     def __init__(self):
         # To be initialized async with startup
-        self.session: Union[aiohttp.ClientSession, None] = None
-        self.redis, self.owner_id, self.appinfo, self.debug_mode, = (
-            None,
+        self.owner_id, self.appinfo, self.debug_mode, = (
             None,
             None,
             set(),
         )
-        self._tasks: list = []
-        self.logging_status: list = []
-        self.storage: dict = {}
-        self.stats = {
+        self._tasks: list[asyncio.Task[None]] = []
+        self.logging_status: list[str] = []
+        self.storage: dict[Union[int, None], StorageManager] = {}
+        self.stats: dict[str, Union[int, Counter[str]]] = {
             "commands_counter": Counter(),
             "users_counter": Counter(),
             "message_counter": 0,
@@ -49,7 +47,7 @@ class Bot(commands.Bot):
         self.cogs_initialized = defaultdict(default=False)
         self.cogs_ready = defaultdict(default=False)
         self.settings = settings
-        self.start_time = util.utcnow()
+        self.start_time: datetime.datetime = util.utcnow()
         intents = discord.Intents.default() | discord.Intents(
             members=True, message_content=True
         )
@@ -73,7 +71,7 @@ class Bot(commands.Bot):
         super().run(self.settings.TOKEN, *args, **kwargs)
 
     @staticmethod
-    def handler(_, context: dict) -> None:
+    def handler(_, context: dict[str, Any]) -> None:
         """Task error handler."""
         exc = context.get("exception", None)
         if exc:
@@ -83,10 +81,10 @@ class Bot(commands.Bot):
         """Initialize session and redis connection, and load extensions, then run."""
         asyncio.get_running_loop().set_exception_handler(self.handler)
         self.before_invoke(util.count_command)
-        self.session = aiohttp.ClientSession()
+        self.session: aiohttp.ClientSession = aiohttp.ClientSession()
 
         try:
-            self.redis = aioredis.from_url(
+            self.redis: aioredis.Redis = aioredis.from_url(
                 f"redis://{self.settings.REDIS_IP}",
                 password=self.settings.REDIS_AUTH,
                 db=self.settings.DB_NUM,
@@ -123,7 +121,7 @@ class Bot(commands.Bot):
                 traceback.print_exc()
         self._tasks.append(asyncio.create_task(self.run_once_when_ready()))
 
-    async def run_once_when_ready(self):
+    async def run_once_when_ready(self) -> None:
         """Contains initialization logic for the bot object that must be run once."""
         await self.wait_until_ready()
         # Initialize all guild storage managers.
@@ -151,8 +149,10 @@ class Bot(commands.Bot):
         self.storage[guild] = StorageManager(self, guild=guild)
 
     async def on_message(self, message):
-        self.stats["message_counter"] += 1
-        self.stats["users_counter"].update([message.author])
+        if isinstance(self.stats["message_counter"], int):
+            self.stats["message_counter"] += 1
+        if isinstance(self.stats["users_counter"], Counter):
+            self.stats["users_counter"].update([message.author])
         await super().on_message(message)
 
     async def prep_close(self, reason="Shutting Down") -> None:
@@ -160,7 +160,7 @@ class Bot(commands.Bot):
         restart."""
         self.log(reason, "SHUT")
         if self is None:
-            return
+            return  # type: ignore[unreachable]
         await self.change_presence(
             status=discord.Status.do_not_disturb,
             activity=discord.Game(f"{reason}..."),
@@ -187,10 +187,12 @@ class Bot(commands.Bot):
         await super().add_cog(cog)
         self.log(f"Loaded cog {cog.qualified_name}.")
 
-    async def get_prefix(self, message: discord.Message) -> Union[Callable, str]:
+    async def get_prefix(
+        self, message: discord.Message
+    ) -> Union[Callable[[commands.Bot, discord.Message], list[str]], str]:
         """Returns the prefix for a given message context."""
         if message.guild is None:
-            return commands.when_mentioned_or("")(self, message)
+            return commands.when_mentioned_or("")(self, message)  # type: ignore[no-any-return]
         if self.settings.ENV != "prod":
             return f"{self.settings.ENV}{self.settings.TEST_PREFIX_OVERRIDE}"
         try:
@@ -199,7 +201,7 @@ class Bot(commands.Bot):
             guild_prefix = self.settings.DEFAULT_PREFIX
         if guild_prefix is None:
             guild_prefix = self.settings.DEFAULT_PREFIX
-        return commands.when_mentioned_or(guild_prefix)(self, message)
+        return commands.when_mentioned_or(guild_prefix)(self, message)  # type: ignore[no-any-return]
 
     async def set_prefix(self, guild: discord.Guild, prefix: str) -> None:
         """Set the prefix for a given guild"""
@@ -285,6 +287,7 @@ class Bot(commands.Bot):
             await self.quiet_send(ctx, resp, delete_after=30)
         else:
             await self.quiet_send(ctx, resp, delete_after=None)
+        return
 
     async def on_command_error(self, ctx: commands.Context, error) -> None:
         """
@@ -297,7 +300,7 @@ class Bot(commands.Bot):
 
     def uptime(self) -> datetime.timedelta:
         """Returns the time since bot startup."""
-        return util.utcnow() - self.start_time
+        return datetime.timedelta(util.utcnow() - self.start_time)
 
     def startuptime(self):
         """Returns the time the bot started up."""

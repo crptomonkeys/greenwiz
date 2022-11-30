@@ -81,7 +81,7 @@ class Wax(MetaCog):
         )
         if not hasattr(self.bot, "green_api"):
             self.bot.green_api = GreenApi(self.session)
-        self.wax_con = WaxConnection(self.bot)
+        self.bot.wax_con = WaxConnection(self.bot)
 
     def cog_unload(self):
         self.update_bot_known_assets.cancel()
@@ -134,7 +134,7 @@ class Wax(MetaCog):
             for address in to_blacklist
         ]
         results = await asyncio.gather(*tasks)
-        failed: Counter = Counter()
+        failed: Counter[str] = Counter()
         for result in results:
             if not result.get("success"):
                 failed[result["exception"]] += 1
@@ -191,7 +191,7 @@ class Wax(MetaCog):
     )
     @commands.check(nifty())
     @commands.check(scope())
-    async def filter(self, ctx: commands.Context, *, provided: str = None):
+    async def filter(self, ctx: commands.Context, *, provided: str = ""):
         """
         Remove all blacklisted addresses from the provided txt file or in-line list.
         File should be a .csv or a .txt with one address per line.
@@ -263,7 +263,7 @@ class Wax(MetaCog):
     @commands.check(monkeyprinter())
     @commands.check(scope())
     async def send_wax(self, ctx: commands.Context, amount: int, destination: str):
-        result = await self.wax_con.transfer_funds(
+        result = await self.bot.wax_con.transfer_funds(
             destination, amount, sender=ctx.author.name
         )
         if result == 0:
@@ -278,7 +278,7 @@ class Wax(MetaCog):
     @commands.check(scope())
     async def send_nft(self, ctx: commands.Context, destination: str, *, asset_id: int):
         asset_ids = [asset_id]
-        result = await self.wax_con.transfer_assets(
+        result = await self.bot.wax_con.transfer_assets(
             destination, asset_ids, sender=ctx.author.name
         )
         if result == 0:
@@ -299,9 +299,9 @@ class Wax(MetaCog):
         template_id: int,
         num=1,
         test: Optional[bool] = False,
-        schema: str = None,
+        schema: str = "",
     ):
-        if template_id < 1000 and not schema:
+        if template_id < 1000 and schema == "":
             template_id = await get_template_id(template_id, self.session)
         response = await ctx.send(f"Minting {num}x {template_id}...")
         ready = 0
@@ -312,9 +312,10 @@ class Wax(MetaCog):
             schema = "testcard"
         else:
             col = DEFAULT_WAX_COLLECTION
-            schema = schema or DEFAULT_WAX_COLLECTION
+            if schema == "":
+                schema = DEFAULT_WAX_COLLECTION
         for i in range(groups):
-            await self.wax_con.mint_asset(
+            await self.bot.wax_con.mint_asset(
                 destination,
                 template_id,
                 amount=max_group,
@@ -329,7 +330,7 @@ class Wax(MetaCog):
         remainder = num % max_group
         if remainder <= 0:
             return
-        await self.wax_con.mint_asset(
+        await self.bot.wax_con.mint_asset(
             destination, template_id, amount=remainder, collection=col, schema=schema
         )
         ready += remainder
@@ -343,14 +344,14 @@ class Wax(MetaCog):
     @commands.check(monkeyprinter())
     @commands.check(scope())
     async def claimlink_id(self, ctx: commands.Context, asset_id: int):
-        success, result = await self.wax_con.create_claimlink([asset_id])
+        success, result = await self.bot.wax_con.create_claimlink([asset_id])
         await ctx.send(result)
 
     @commands.command(description="Cancel the specified claimlink.")
     @commands.check(monkeyprinter())
     @commands.check(scope())
     async def cancel_link(self, ctx: commands.Context, link_id: int):
-        result, tx_id = await self.wax_con.cancel_claimlink(link_id)
+        result, tx_id = await self.bot.wax_con.cancel_claimlink(link_id)
         await ctx.send(f"Deleted claimlink {link_id}. Transaction id: {tx_id}.")
 
     @commands.command(description="Cancel old claimlinks.")
@@ -361,7 +362,7 @@ class Wax(MetaCog):
             links_dict = json.loads(links)
         except json.JSONDecodeError:
             raise InvalidInput("Invalid list of claimlink ints.")
-        await delete_old_links(ctx, self.wax_con, links_dict)
+        await delete_old_links(ctx, self.bot.wax_con, links_dict)
         await ctx.send("Delete complete.")
 
     @commands.command(
@@ -398,7 +399,7 @@ class Wax(MetaCog):
             )
         # good to go, choose an asset and make a claim link
         asset_id = random.choice(asset_ids)
-        success, link = await self.wax_con.create_claimlink([asset_id], memo=memo)
+        success, link = await self.bot.wax_con.create_claimlink([asset_id], memo=memo)
         # If an error occurred, report it
         if success != 0:
             return await ctx.send(link)
@@ -460,7 +461,7 @@ class Wax(MetaCog):
         for i in range(amount):
             asset_id = random.choice(asset_ids)
             asset_ids.remove(asset_id)
-            success, link = await self.wax_con.create_claimlink(
+            success, link = await self.bot.wax_con.create_claimlink(
                 [asset_id], memo=memo, wait_for_confirmation=False
             )
             to_send += [link]
@@ -545,7 +546,7 @@ class Wax(MetaCog):
                 "DBUG",
             )
             return await send_link_start_to_finish(
-                self.wax_con, self.bot, ctx.message, member, ctx.author, reason, num
+                self.bot.wax_con, self.bot, ctx.message, member, ctx.author, reason, num
             )
         member = str(member)
         if len(member) > 12:
@@ -609,7 +610,7 @@ class Wax(MetaCog):
         number: Optional[int] = 10,
         channel: TextChannel = None,
         *,
-        reason: str = None,
+        reason: str = "",
     ):
         """Drop an NFT to approximately the nth respondent in this channel.
         Slightly randomized to avoid abuse."""
@@ -624,7 +625,7 @@ class Wax(MetaCog):
             number = 10
         counter, resp = 0, None
         await ctx.message.delete()
-        if reason is None:
+        if reason == "":
             reason = (
                 f"Monkeyloot from {ctx.author} for being the {number}th respondent!"
             )
@@ -646,7 +647,9 @@ class Wax(MetaCog):
                     or message.author == giver
                 ):
                     return False
-                return calc_msg_activity(self.bot, message.author, message.content) > 0
+                return bool(
+                    calc_msg_activity(self.bot, message.author, message.content) > 0
+                )
 
             return in_check
 
@@ -685,7 +688,7 @@ class Wax(MetaCog):
         self.recent_drops.appendleft(resp.author.id)
         log("attempting to send a loot", "DBUG")
         reward_id = await send_link_start_to_finish(
-            self.wax_con, self.bot, resp, resp.author, ctx.author, reason
+            self.bot.wax_con, self.bot, resp, resp.author, ctx.author, reason
         )
         if reward_id:
             if resp.channel != ctx.channel:
@@ -726,7 +729,7 @@ class Wax(MetaCog):
         if self.session.closed:
             return
         for key, value in collections.items():
-            asset_ids = set()
+            asset_ids: set[int] = set()
             page = 1
             while True:
                 async with self.session.get(
@@ -764,7 +767,7 @@ class Wax(MetaCog):
     @commands.check(monkeyprinter())
     async def monkeysmatch(self, ctx: commands.Context, completions: Optional[int] = 1):
         """Fetches all wax addresses who have completed at least n games of monkeysmatch. Default 1."""
-        res = await self.wax_con.monkeysmatch_top(completions)
+        res = await self.bot.wax_con.monkeysmatch_top(completions)
 
         with open("res/tmp/monkeysmatch_results.json", "w+", encoding="utf-8") as f:
             json.dump(res, f, indent=4)
