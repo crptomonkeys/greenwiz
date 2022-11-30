@@ -106,7 +106,7 @@ class CollectionData:
     intro_ch: Optional[int] = None
     daily_limit: int = 5
     link_message_append: str = (
-        "WARNING: Tip bot claimlinks may be cancelled 91 days after issuance."
+        "WARNING: Tip bot claimlinks may be cancelled 10 days after issuance."
     )
 
     def __repr__(self):
