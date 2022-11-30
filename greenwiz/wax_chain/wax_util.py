@@ -1218,7 +1218,7 @@ async def get_fair_price_for_card(
         template_id_price_cache_ages[template_id] = time()
         template_id_price_cache[template_id] = (sale_ema, lowest_offer)
 
-    market = fair_est(sale_ema, lowest_offer)
+    market: float = fair_est(sale_ema, lowest_offer)
     if not detail:
         return market
     return template_id, market, sale_ema, lowest_offer

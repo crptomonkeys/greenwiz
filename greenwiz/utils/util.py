@@ -34,7 +34,7 @@ def now_stamp():
     return datetime.now().strftime("%m/%d/%y %H:%M:%S")
 
 
-def utcnow():
+def utcnow() -> datetime:
     """
     Returns the current time as a timezone aware utc datetime object.
     :return: the current time as a timezone aware utc datetime object.
@@ -45,8 +45,13 @@ def utcnow():
 
 def load_json_var(name):
     """For loading a list from a json file"""
-    with open(f"./res/{name}.json", "r", encoding="utf-8") as f:
-        return json.load(f)
+    try:
+        with open(f"./res/{name}.json", "r+", encoding="utf-8") as f:
+            return json.load(f)
+    except FileNotFoundError:
+        with open(f"./res/{name}.json", "w+", encoding="utf-8") as f:
+            json.dump(dict(), f, indent=4)
+            return dict()
 
 
 def write_json_var(name, obj):
@@ -303,7 +308,7 @@ async def save_temp_then_share(ctx, content: str, message: str, filename: str) -
 
 
 async def get_addrs_from_content_or_file(
-    message: discord.Message, provided: str = None
+    message: discord.Message, provided: str = ""
 ) -> tuple[bool, list[str]]:
     """Returns a tuple of bool and list of str.
     The bool is whether the results should be relayed inline or in a file.
@@ -311,7 +316,7 @@ async def get_addrs_from_content_or_file(
     if hasattr(message, "attachments") and len(message.attachments) > 0:
         return (False, await addrs_from_file(message.attachments[0]))
 
-    if provided is None:
+    if provided == "":
         raise InvalidInput(
             "No addresses provided. Please either attach a .txt list or put a list of addresses in this command."
         )

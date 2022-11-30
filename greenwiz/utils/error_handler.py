@@ -75,113 +75,138 @@ async def handle_command_error(bot, ctx, error: BaseException) -> None:
     if isinstance(
         error, (InvalidResponse, UnableToCompleteRequestedAction, InvalidInput)
     ):
-        return await bot.quiet_fail(ctx, str(error))
+        await bot.quiet_fail(ctx, str(error))
+        return
     elif isinstance(error, AssertionError):  # Don't return. *also* send this one to dev
         await bot.quiet_fail(ctx, str(error), delete=False)
     # Wrong place or no perms errors:
     elif isinstance(error, commands.NoPrivateMessage):
-        return await bot.quiet_fail(
+        await bot.quiet_fail(
             ctx, f"the {ctx.command} command can not be used in private messages."
         )
+        return
     elif isinstance(error, commands.PrivateMessageOnly):
-        return await bot.quiet_fail(
+        await bot.quiet_fail(
             ctx, f"{ctx.command} command can only be used in private messages."
         )
+        return
     elif isinstance(error, bot_or_command_missing_perms):
-        return await bot.quiet_fail(ctx, f"{error}")
+        await bot.quiet_fail(ctx, f"{error}")
+        return
     elif isinstance(error, commands.NSFWChannelRequired):
-        return await bot.quiet_fail(
+        await bot.quiet_fail(
             ctx,
             f"the {ctx.command} command must be used in an NSFW-marked channel.",
         )
+        return
     elif isinstance(error, discord.ext.commands.errors.CommandOnCooldown):
-        return await bot.quiet_fail(
+        await bot.quiet_fail(
             ctx,
             "you are on cooldown for that command. Try again in a little while.",
         )
+        return
     elif isinstance(error, commands.MaxConcurrencyReached):
-        return await bot.quiet_fail(
+        await bot.quiet_fail(
             ctx, "too many instances of this command are being run at the moment."
         )
+        return
     elif isinstance(error, commands.CheckFailure):
-        return await bot.quiet_fail(
-            ctx, "you are not authorized to perform this command."
-        )
+        await bot.quiet_fail(ctx, "you are not authorized to perform this command.")
+        return
     # User misformulated command errors
     elif isinstance(error, commands.BadBoolArgument):
-        return await bot.quiet_fail(
+        await bot.quiet_fail(
             ctx,
             'boolean arguments must be "yes"/"no", "y"/"n", "true"/"false", "t"/"f", '
             '"1"/"0", "enable"/"disable" or "on"/"off".',
         )
+        return
     elif isinstance(error, commands.PartialEmojiConversionFailure):
-        return await bot.quiet_fail(ctx, "that is not an CM_EMOJIS.")
+        await bot.quiet_fail(ctx, "that is not an CM_EMOJIS.")
+        return
     elif isinstance(error, commands.EmojiNotFound):
-        return await bot.quiet_fail(ctx, "I didn't find that CM_EMOJIS.")
+        await bot.quiet_fail(ctx, "I didn't find that CM_EMOJIS.")
+        return
     elif isinstance(error, commands.BadInviteArgument):
-        return await bot.quiet_fail(ctx, "that invite is invalid or expired.")
+        await bot.quiet_fail(ctx, "that invite is invalid or expired.")
+        return
     elif isinstance(error, commands.RoleNotFound):
-        return await bot.quiet_fail(ctx, "I didn't find that role.")
+        await bot.quiet_fail(ctx, "I didn't find that role.")
+        return
     elif isinstance(error, commands.BadColourArgument):
-        return await bot.quiet_fail(ctx, "that's not a valid color")
+        await bot.quiet_fail(ctx, "that's not a valid color")
+        return
     elif isinstance(error, commands.ChannelNotReadable):
-        return await bot.quiet_fail(
+        await bot.quiet_fail(
             ctx, "I don't have permission to read messages in that channel."
         )
+        return
     elif isinstance(error, commands.ChannelNotFound):
-        return await bot.quiet_fail(ctx, "I didn't find that channel.")
+        await bot.quiet_fail(ctx, "I didn't find that channel.")
+        return
     elif isinstance(error, commands.MemberNotFound):
-        return await bot.quiet_fail(ctx, "I didn't find that member.")
+        await bot.quiet_fail(ctx, "I didn't find that member.")
+        return
     elif isinstance(error, commands.UserNotFound):
-        return await bot.quiet_fail(ctx, "I didn't find that user.")
+        await bot.quiet_fail(ctx, "I didn't find that user.")
+        return
     elif isinstance(error, commands.UserNotFound):
-        return await bot.quiet_fail(ctx, "I didn't find that message.")
+        await bot.quiet_fail(ctx, "I didn't find that message.")
+        return
     elif isinstance(error, commands.MissingRequiredArgument):
         await ctx.send_help(ctx.command)
-        return await bot.quiet_fail(
-            ctx, "incomplete command, missing a required value."
-        )
+        await bot.quiet_fail(ctx, "incomplete command, missing a required value.")
+        return
     elif isinstance(error, commands.TooManyArguments):
         await ctx.send_help(ctx.command)
-        return await bot.quiet_fail(ctx, "too many values passed to this command.")
+        await bot.quiet_fail(ctx, "too many values passed to this command.")
+        return
     elif isinstance(error, bad_quotes):  # User messed up quotes
-        return await bot.quiet_fail(
+        await bot.quiet_fail(
             ctx,
             "quotation marks do not balance. Make sure you close every quote you "
             "open.",
         )
+        return
     elif isinstance(error, bad_argument_errors):
-        return await bot.quiet_fail(
+        await bot.quiet_fail(
             ctx,
             f"improper command. Check help {ctx.command} to help you "
             f"formulate this command correctly.",
         )
+        return
     # Extension and command registration errors
     elif isinstance(error, commands.ExtensionAlreadyLoaded):
-        return await bot.quiet_fail(ctx, "that extension is already loaded.")
+        await bot.quiet_fail(ctx, "that extension is already loaded.")
+        return
     elif isinstance(error, commands.ExtensionNotLoaded):
-        return await bot.quiet_fail(ctx, "that extension is not loaded.")
+        await bot.quiet_fail(ctx, "that extension is not loaded.")
+        return
     elif isinstance(error, commands.NoEntryPointError):
-        return await bot.quiet_fail(
-            ctx, "that extension does not have a setup function."
-        )
+        await bot.quiet_fail(ctx, "that extension does not have a setup function.")
+        return
     elif isinstance(error, commands.ExtensionNotFound):
-        return await bot.quiet_fail(ctx, "I see no such extension.")
+        await bot.quiet_fail(ctx, "I see no such extension.")
+        return
     elif isinstance(error, commands.ExtensionFailed):
-        return await bot.quiet_fail(ctx, "that extension refused to load.")
+        await bot.quiet_fail(ctx, "that extension refused to load.")
+        return
     elif isinstance(error, commands.ExtensionError):
-        return await bot.quiet_fail(ctx, "uncaught ExtensionError.", delete=False)
+        await bot.quiet_fail(ctx, "uncaught ExtensionError.", delete=False)
+        return
     elif isinstance(error, commands.CommandRegistrationError):
-        return await bot.quiet_fail(
+        await bot.quiet_fail(
             ctx,
             f"failed to register a duplicate command name: {error}",
             delete=False,
         )
+        return
     # Unknown, likely runtime environment-dependent non-deterministic, discord.py-triggered error
     elif isinstance(error, discord.ClientException):
-        return await bot.quiet_fail(
+        await bot.quiet_fail(
             ctx, "hmm, something went wrong. Try that command again.", delete=False
         )
+        return
     # Other
     elif isinstance(error, EosAssertMessageException):
         try:
@@ -190,23 +215,27 @@ async def handle_command_error(bot, ctx, error: BaseException) -> None:
             )
         except IndexError:
             text = error.__repr__()
-        return await bot.quiet_fail(ctx, text, delete=False)
+        await bot.quiet_fail(ctx, text, delete=False)
+        return
     elif isinstance(error, discord.HTTPException):
-        return await bot.quiet_fail(
+        await bot.quiet_fail(
             ctx,
             "I received an HTTP exception from discord. Most likely, the result was longer than 4000 characters.",
             delete=False,
         )
+        return
     elif isinstance(error, JSONDecodeError):
-        return await bot.quiet_fail(
+        await bot.quiet_fail(
             ctx,
             f"the api for {ctx.command} appears to be down at the moment. Try again later.",
         )
+        return
     elif isinstance(error, asyncio.TimeoutError):
-        return await bot.quiet_fail(
+        await bot.quiet_fail(
             ctx,
             "you took too long. Please re-run the command to continue when you're ready.",
         )
+        return
     else:
         # Get data from exception and format
         lines = traceback.format_exception(type(error), error, error.__traceback__)
