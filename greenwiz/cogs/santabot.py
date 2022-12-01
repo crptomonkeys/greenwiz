@@ -236,7 +236,7 @@ class SantaBot(MetaCog):
             await ctx.message.clear_reactions()
             return await err(ctx, "You already opened your gift from Santa for today.")
         base_luck = await get_luck_threshold_for_user(ctx.author, self.bot)
-        if base_luck > 0.001:
+        if base_luck < 0.001:
             await ctx.message.clear_reactions()
             return await err(
                 ctx,
