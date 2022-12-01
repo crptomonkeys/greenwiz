@@ -11,7 +11,7 @@ def gen_salt() -> str:
     nonce: str = str(urandom(32))
     digest = f"match-a-monkey-{nonce}"
     prep_data = sha256(digest.encode("utf-8")).digest()
-    return keypair.sign(prep_data)
+    return str(keypair.sign(prep_data))
 
 
 def setsalt(salt: str = None, authorization=None) -> types.EosAction:

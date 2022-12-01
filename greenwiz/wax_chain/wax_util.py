@@ -22,7 +22,7 @@ import hashlib
 import traceback
 from json import JSONDecodeError, dumps
 from time import time
-from typing import List, Union, Optional
+from typing import List, Union, Optional, Any
 
 import aiohttp
 import discord
@@ -249,7 +249,7 @@ class EosJsonRpcWrapper(EosJsonRpc):
         self.ses = ses
         super().__init__(url)
 
-    async def post(self, endpoint: str, json=None) -> dict:
+    async def post(self, endpoint: str, json=None) -> dict[str, Any]:
         """Override EosJsonRpc to reuse an aiohttp session and handle non-standard endpoint errors somewhat
         more robustly"""
         if json is None:
@@ -257,7 +257,9 @@ class EosJsonRpcWrapper(EosJsonRpc):
         if self.ses is not None:
             async with self.ses.post(f"{self.URL}/v1{endpoint}", json=json) as res:
                 try:
-                    resp_dict = await res.json(content_type=None)
+                    resp_dict: Optional[dict[str, Any]] = await res.json(
+                        content_type=None
+                    )
                 except JSONDecodeError:
                     resp_dict = {"code": 500, "error": {"name": "JSONDecodeError"}}
                 finally:
@@ -283,7 +285,8 @@ class EosJsonRpcWrapper(EosJsonRpc):
         # If self has no session, just use super.post which creates a session and cleans up each time. This is done
         # instead of making a self.ses if one isn't provided in order to ensure proper cleanup without requiring use
         # of a context manager to invoke this object.
-        return await super().post(endpoint, json=json)
+        super_dict: dict[str, Any] = await super().post(endpoint, json=json)
+        return super_dict
 
 
 class WaxConnection:
@@ -331,7 +334,7 @@ class WaxConnection:
         actions: Union[EosAction, List[EosAction]],
         context_free_bytes: bytes = bytes(32),
         sender_ac: str = DEFAULT_WAX_COLLECTION,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """Attempts to sign and push a transaction to one API. Failing that, it goes to another all the way down the
         list. Pass a list of EosActions or a single EosAction."""
         # Convert to list if it isn't one already
@@ -339,7 +342,7 @@ class WaxConnection:
             actions = [actions]
         failed_rpcs, suc = set(), "None"
         chain_id: bytes = b""
-        block: Optional[dict] = None
+        block: Optional[dict[str, Any]] = None
         self.log(f"Executing a transaction, actions: {actions}")
 
         # Try getting the head block from each rpc until one succeeds
@@ -425,7 +428,7 @@ class WaxConnection:
         ]
 
         # Add a timeout so this doesn't hang indefinitely if no APIs are working
-        async def timeout(fut: asyncio.Future, length: int):
+        async def timeout(fut: asyncio.Future[Optional[Any]], length: int) -> None:
             await asyncio.sleep(length)
             fut.set_result(None)
 
@@ -433,7 +436,7 @@ class WaxConnection:
 
         try:
             res = await future
-            result = future.result()
+            result: dict[str, Any] = future.result()
         finally:
             self.log("Cancelling remaining tasks")
             for task in tasks:
@@ -452,15 +455,15 @@ class WaxConnection:
 
     async def tx(
         self,
-        fut: asyncio.Future,
+        fut: asyncio.Future[Optional[dict[str, Any]]],
         rpc: EosJsonRpcWrapper,
-        signatures: list,
+        signatures: list[str],
         serialized_transaction: str,
     ) -> None:
         """Does a single transaction push to a single EosJsonRpcWrapper object, if it is successful sets the
         callback future."""
         try:
-            tx_resp = await rpc.push_transaction(
+            tx_resp: dict[str, Any] = await rpc.push_transaction(
                 signatures=signatures, serialized_transaction=serialized_transaction
             )
         except EosAssertMessageException as e:
@@ -478,7 +481,7 @@ class WaxConnection:
         amount,
         sender: str = "Unknown",
         sender_ac: str = DEFAULT_WAX_COLLECTION,
-    ):
+    ) -> dict[str, Any]:
         prep_amount = format_wax_amount(amount)
         actions = [
             eosio_token.transfer(
@@ -500,9 +503,9 @@ class WaxConnection:
         asset_ids: list[int],
         sender: str = "Unknown",
         sender_ac: str = DEFAULT_WAX_COLLECTION,
-        memo: str = None,
-    ):
-        if not memo:
+        memo: str = "",
+    ) -> dict[str, Any]:
+        if memo == "":
             memo = f"Asset transfer by {sender} on behalf of {sender_ac} by the NFT Tip Bot."
         actions = [
             atomicassets.transfer(
@@ -525,7 +528,7 @@ class WaxConnection:
         amount: int = 1,
         collection: str = DEFAULT_WAX_COLLECTION,
         schema: str = DEFAULT_WAX_COLLECTION,
-    ):
+    ) -> dict[str, Any]:
         actions = [
             atomicassets.mintasset(
                 minter=self.wax_ac[collection].name,
@@ -551,7 +554,7 @@ class WaxConnection:
         except ValueError:
             pass
 
-    def remove_all_from_history_rpc(self, faulty: str):
+    def remove_all_from_history_rpc(self, faulty: str) -> None:
         """Removes all EosJsonRpcWrappers from the semi-random weighted list with the given URL because it isn't
         working for whatever reason."""
         to_remove = []
@@ -610,7 +613,9 @@ class WaxConnection:
                     code = get_resp_code(response)
                     if code < 400 and response.get("executed", False):
                         try:
-                            link_id = response["actions"][1]["act"]["data"]["link_id"]
+                            link_id: int = response["actions"][1]["act"]["data"][
+                                "link_id"
+                            ]
                         except KeyError:
                             link_id = int(
                                 str(response)
@@ -621,7 +626,7 @@ class WaxConnection:
                             f"Received an apparently well-formed response for link_id {link_id} from "
                             f"{selected.URL}."
                         )
-                        return link_id
+                        return str(link_id)
                     if code == 410 or code == 404:
                         self.log(
                             f"{selected.URL} reported the /get_transaction endpoint as 410 GONE, so removing "
@@ -784,8 +789,10 @@ class WaxConnection:
         return link
 
     async def update_salt(self) -> str:
-        acc = EosAccount(name=MONKEYMATCH_ACC_NAME, private_key=MONKEYMATCH_PRIV_KEY)
-        salt = gen_salt()
+        acc: EosAccount = EosAccount(
+            name=MONKEYMATCH_ACC_NAME, private_key=MONKEYMATCH_PRIV_KEY
+        )
+        salt: str = gen_salt()
         actions = [
             monkeysmatch.setsalt(
                 salt=salt, authorization=acc.authorization(SALT_ACC_PERMISSION)
@@ -794,7 +801,7 @@ class WaxConnection:
         await self.execute_transaction(actions, sender_ac=MONKEYMATCH_ACC_NAME)
         return salt
 
-    async def monkeysmatch_top(self, _min: int = 1):
+    async def monkeysmatch_top(self, _min: int = 1) -> dict[str, int]:
         """Fetches the users who have completed at least n games of monkeysmatch."""
         for rpc in self.api_rpc:
             try:
@@ -820,7 +827,7 @@ class WaxConnection:
         )
 
 
-def incr_given_today(uid: int):
+def incr_given_today(uid: int) -> None:
     usage = load_json_var("card_sends")
     log(f"Reading usage: {usage}", "TST")
     try:
@@ -835,13 +842,13 @@ def incr_given_today(uid: int):
     write_json_var("card_sends", usage)
 
 
-def check_given_today(uid: int):
+def check_given_today(uid: int) -> int:
     usage = load_json_var("card_sends")
-    res = usage.get(today(), {}).get(str(uid), 0)
+    res = int(usage.get(today(), {}).get(str(uid), 0))
     return res
 
 
-async def schedule_dm_user(user, increments, message):
+async def schedule_dm_user(user, increments, message) -> None:
     await asyncio.sleep(increments)
     try:
         await user.send(message)
@@ -853,12 +860,14 @@ async def schedule_dm_user(user, increments, message):
 async def get_template_id(card_num: int, session: aiohttp.ClientSession) -> int:
     global cache_cards, card_cache_age
     cache_cards = await update_cache_cards(session)
-    card_info = cache_cards.get(card_num, -1)
-    if card_info == -1:
+    try:
+        card_info: dict[str, int] = cache_cards[card_num]
+    except IndexError:
         await update_cache_cards(session)
-        card_info = cache_cards.get(card_num, -1)
-        if card_info == -1:
-            return card_info
+        try:
+            card_info = cache_cards[card_num]
+        except IndexError:
+            return -1
     return card_info["template_id"]
 
 
@@ -1039,7 +1048,7 @@ async def get_card_dict(
     force: bool = False,
     page: int = 1,
     show_prices: bool = False,
-):
+) -> dict[int, dict[str, str]]:
     """
     Returns card owned addresses, refreshing as necessary
     :param session: The aiohttp session to use to fetch this information.
@@ -1153,7 +1162,9 @@ async def get_card_dict(
     return wax_dict[collection]
 
 
-async def update_cache_cards(session: aiohttp.ClientSession, force: bool = False):
+async def update_cache_cards(
+    session: aiohttp.ClientSession, force: bool = False
+) -> dict[int, dict[str, int]]:
     global cache_cards, card_cache_age
     collection = DEFAULT_WAX_COLLECTION
     if time() - card_cache_age < WAX_CACHE_TIME and not force:

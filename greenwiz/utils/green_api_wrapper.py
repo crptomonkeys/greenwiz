@@ -1,4 +1,4 @@
-from typing import Set
+from typing import Set, Any, Optional
 
 import aiohttp.web_exceptions
 
@@ -29,16 +29,18 @@ class GreenApi:
         self.cached_blacklist = set()
         self.cache_updated = 0
 
-    async def all_miners_for_cycle(self, cycle: int = None) -> list:
+    async def all_miners_for_cycle(
+        self, cycle: Optional[int] = None
+    ) -> list[dict[str, Any]]:
         assert cycle is not None, "Cycle is a required field."
-        page = 1
-        responses = 1000
-        time = None
-        users = dict()
+        page: int = 1
+        responses: int = 1000
+        time: str = ""
+        users: dict[str, Any] = dict()
         while responses >= 1000:
             resp = await self.miner(cycle=cycle, page=page)
             responses = resp["count"]
-            if time is None:
+            if time == "":
                 time = resp["last_update"]
             elif time != resp["last_update"]:
                 # Start again
@@ -50,17 +52,21 @@ class GreenApi:
 
         blacklist = await self.get_blacklist()
         miners = [i for i in users.values() if i["user"] not in blacklist]
-        return sorted(miners, key=lambda x: x["rank"])
+        result_list: list[dict[str, Any]] = sorted(miners, key=lambda x: x["rank"])  # type: ignore[no-any-return]
+        return result_list
 
-    async def miner(self, cycle: int = None, page: int = 1, user: str = None) -> dict:
+    async def miner(
+        self, cycle: Optional[int] = None, page: int = 1, user: str = ""
+    ) -> dict[str, Any]:
         assert cycle is not None, "Cycle is a required field."
-        if user is None:
+        if user == "":
             url = f"{self.url_base}/miner/{cycle}?page={page}"
         else:
             url = f"{self.url_base}/miner/{cycle}?page={page}&user={user}"
-        return await self.get_resp(url)
+        resp: dict[str, Any] = await self.get_resp(url)
+        return resp
 
-    async def get_resp(self, url: str):
+    async def get_resp(self, url: str) -> Any:
         resp = await self.session.get(url)
         resp.raise_for_status()
         js = await resp.json()
@@ -68,13 +74,13 @@ class GreenApi:
             raise GreenApiException(js.get("error"))
         return js
 
-    async def blacklist_add(self, address: str) -> dict:
+    async def blacklist_add(self, address: str) -> dict[str, Any]:
         """Add a wax address to the blacklist"""
         if "<" in address or ">" in address or "!" in address or "@" in address:
             raise InvalidInput(f"{address} is not a valid wax address.")
 
         try:
-            resp = await self.get_resp(
+            resp: dict[str, Any] = await self.get_resp(
                 f"{BLACKLIST_ADD}?code={BLACKLIST_AUTH_CODE}&wallet={address}"
             )
         except GreenApiException as e:
@@ -82,13 +88,13 @@ class GreenApi:
         self.cache_updated = 0
         return resp
 
-    async def blacklist_remove(self, address: str) -> dict:
+    async def blacklist_remove(self, address: str) -> dict[str, Any]:
         """Remove an address from the blacklist"""
         if "<" in address or ">" in address or "!" in address or "@" in address:
             raise InvalidInput(f"{address} is not a valid wax address.")
 
         try:
-            resp = await self.get_resp(
+            resp: dict[str, Any] = await self.get_resp(
                 f"{BLACKLIST_REMOVE}?code={BLACKLIST_AUTH_CODE}&wallet={address}"
             )
         except GreenApiException as e:
