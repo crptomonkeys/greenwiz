@@ -197,7 +197,7 @@ async def get_luck_threshold_for_user(user: discord.User, bot) -> float:
 class SantaBot(MetaCog):
 
     # Commands
-    @commands.hybrid_command(
+    @commands.command(
         aliases=[
             "present",
             "openpresent",
