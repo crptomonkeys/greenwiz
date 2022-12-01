@@ -3,7 +3,6 @@ from datetime import datetime
 from time import time
 
 import aiohttp
-import aioredis
 import discord
 from discord.ext import commands
 from discord.ext.commands import BucketType
@@ -23,8 +22,6 @@ from wax_chain.wax_util import announce_and_send_link
 
 drop_banano_endpoint = "/accounts/api/v1/drop_ban_discord/"
 connect_url = "https://connect.cryptomonkeys.cc"
-users_endpoint = "https://bananobotapi.banano.cc/users"
-ban_cache_key = "global:banaddress"
 success_emoji = "🎅"
 cache_time = 600  # seconds before querying api again to refresh user dict
 
@@ -34,23 +31,6 @@ cached_active_users_age: float = 0
 
 class ConnectFailedToSendBan(ValueError):
     """monKeyconnect returned an unsuccessful response to my request to send bannao."""
-
-
-async def update_ban_addr_cache(
-    session: aiohttp.ClientSession, cache: aioredis.Redis
-) -> None:
-    """Updates the cache of banano addresses for users.
-    Takes a ClientSession object and a redis database object."""
-    user_dict = {}
-    try:
-        async with session.get(users_endpoint) as response:
-            raw_json = await response.json()
-        user_dict = {item["user_id"]: item["address"] for item in raw_json}
-    except aiohttp.ClientConnectionError:
-        log("Unable to connect to api to fetch usernames.", "WARN")
-    except aiohttp.ContentTypeError:
-        log("ContentTypeError trying to fetch usernames.", "WARN")
-    await cache.hmset_dict(ban_cache_key, user_dict)
 
 
 async def send_ban_to_user(
@@ -142,7 +122,7 @@ async def attempt_to_send_daily_reward_ban_or_send_cm_instead(
     return msg
 
 
-async def send_daily_reward(author: discord.User, bot, base_luck_for_user: int = 1):
+async def send_daily_reward(author: discord.User, bot, base_luck_for_user: float = 1.0):
     luck = random.random()
     reroll = random.random()
     secondary_success = (
@@ -172,7 +152,7 @@ async def send_daily_reward(author: discord.User, bot, base_luck_for_user: int =
 
 async def send_daily_reward_cryptomonkey(bot, user: discord.Member) -> None:
     memo = f"Santa's treat for {user.name} on {today()}"
-    link = await bot.wax_con.get_random_claim_link(user.display_name, memo=memo)
+    link = await bot.wax_con.get_random_claim_link(str(user), memo=memo)
     claim_id = await announce_and_send_link(bot, link, user, memo)
     record_user_opened_today_gift(user.id, f"cryptomonKey #{claim_id}")
 
@@ -193,11 +173,13 @@ async def send_daily_reward_ban(
     return 1
 
 
-async def get_luck_threshold_for_user(user: discord.User, bot):
+async def get_luck_threshold_for_user(user: discord.User, bot) -> float:
+    """Returns the threshold for a secondary check that scales santa failure odds by achieved rank.
+    1 always passes this secondary check, 0 never does."""
     if has_cm_role(user, "reeestricted", bot):
         raise InvalidInput("Sorry, REEEstricted users can't get santa rewards.")
     if has_cm_role(user, "legendary monkey", bot):
-        return 1
+        return 1.0
     elif has_cm_role(user, "epic monkey", bot):
         return 0.95
     elif has_cm_role(user, "rare monkey", bot):
@@ -209,7 +191,7 @@ async def get_luck_threshold_for_user(user: discord.User, bot):
     elif has_cm_role(user, "common monkey", bot):
         return 0.35
     else:
-        return 0.28
+        return 0.0
 
 
 class SantaBot(MetaCog):
@@ -229,13 +211,16 @@ class SantaBot(MetaCog):
     @commands.guild_only()
     @commands.max_concurrency(1, per=BucketType.user, wait=False)
     async def gift(self, ctx):
+        """Santa gift command. Allows users to, once a day, have a chance of claiming
+         a banano reward or random cryptomonKey reward.
+        Has a rare chance of a large banano jackpot, and random cryptomonKey rewards
+         may rarely be extremely rare and valuable cards.
+        Users must have achieved Citizen role on the banano server or be active on
+         the cryptomonKey server in order to use this command.
+        This command must be used in one of the designated bot spam channels."""
         log(f"Entering santa gift for {ctx.author}", "DBUG")
         # Verification checks
         await ctx.message.add_reaction("⌛")
-        opened = check_user_opened_today_gift(ctx.author.id)
-        if opened:
-            await ctx.message.clear_reactions()
-            return await err(ctx, "You already opened your gift from Santa for today.")
         if ctx.channel.id not in [
             915123315176247316,
             524557798416187392,
@@ -246,15 +231,19 @@ class SantaBot(MetaCog):
                 ctx,
                 "You can't use this command here. Make sure it's in an appropriate channel.",
             )
-        atho = await get_luck_threshold_for_user(ctx.author, ctx.bot) > 0.001
-        if not atho:
+        opened = check_user_opened_today_gift(ctx.author.id)
+        if opened:
+            await ctx.message.clear_reactions()
+            return await err(ctx, "You already opened your gift from Santa for today.")
+        base_luck = await get_luck_threshold_for_user(ctx.author, self.bot)
+        if base_luck > 0.001:
             await ctx.message.clear_reactions()
             return await err(
                 ctx,
                 "Sorry, you must either be a Banano citizen or active on the cryptomonKeys "
                 "server to use this command.",
             )
-        await send_daily_reward(ctx.author, self.bot, base_luck_for_user=atho)
+        await send_daily_reward(ctx.author, self.bot, base_luck_for_user=base_luck)
         try:
             await ctx.message.clear_reactions()
             await ctx.message.add_reaction(success_emoji)
