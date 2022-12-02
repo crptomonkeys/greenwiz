@@ -96,6 +96,10 @@ cards = [
     "the black wizard",
     "the banslinger",
     "the jungle",
+    "banspiracy",
+    "lights on",
+    "lights off",
+    "the grin reaper",
 ]
 
 ops = {"+": operator.add, "-": operator.sub, "*": operator.mul, "/": operator.truediv}
@@ -128,7 +132,7 @@ def _rand(_min=1, _max=10000) -> int:
     return random.randint(_min, min(len(cards) + 1, _max))
 
 
-def randomcalc(difficulty: int = 1) -> tuple[list, int]:
+def randomcalc(difficulty: int = 1) -> tuple[list[Union[int, str]], int]:
     """Creates a random math question."""
     if difficulty != 1:
         raise NotImplementedError

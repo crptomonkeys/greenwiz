@@ -18,14 +18,6 @@ def check(author):
     return in_check
 
 
-def check_opts(author):
-    def in_check(message):
-        global opts
-        return message.author == author and message.content in opts
-
-    return in_check
-
-
 class Test(MetaCog):
     # Events
     @commands.Cog.listener()

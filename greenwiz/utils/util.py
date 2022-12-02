@@ -25,7 +25,7 @@ def epoch() -> float:
     return datetime.now(timezone.utc).timestamp()
 
 
-def now_stamp():
+def now_stamp() -> str:
     """
     Returns the current timestamp as a MM/DD/YYYY HH:MM:SS timestamp.
     :return: The current timestamp as a MM/DD/YYYY HH:MM:SS timestamp.
@@ -43,30 +43,31 @@ def utcnow() -> datetime:
     return datetime.now(tz=timezone.utc)
 
 
-def load_json_var(name):
+def load_json_var(name) -> dict[typing.Any, typing.Any]:
     """For loading a list from a json file"""
+    res: dict[typing.Any, typing.Any] = dict()
     try:
         with open(f"./res/{name}.json", "r+", encoding="utf-8") as f:
-            return json.load(f)
+            res = json.load(f)
     except FileNotFoundError:
         with open(f"./res/{name}.json", "w+", encoding="utf-8") as f:
             json.dump(dict(), f, indent=4)
-            return dict()
+    return res
 
 
-def write_json_var(name, obj):
+def write_json_var(name, obj) -> None:
     """For writing a list to a json file"""
     with open(f"./res/{name}.json", "w", encoding="utf-8") as f:
         json.dump(obj, f, indent=4)
 
 
 # For requesting a footnote on someone
-def embed_footer(author):
+def embed_footer(author) -> str:
     return f"Requested by {str(author)} at {now_stamp()}."
 
 
 # Turns 1000000 into 1.00M or 4358295029 into 4.36B
-def biground(num, digits=4):
+def biground(num, digits=4) -> str:
     digs = 10**digits
     try:
         num = int(num)
@@ -75,12 +76,12 @@ def biground(num, digits=4):
         raise InvalidInput(f"{num} is not a number.")
     for i, prefix in BIGNUMS.items():
         if num / (10**i) >= 1:
-            return str(round((num * digs) / (10**i)) / digs) + prefix
+            return f"{str(round((num * digs) / (10**i)) / digs)}{prefix}"
     return str(round((num * digs) / digs))
 
 
 # Returns the base 10 order of magnitude of a number
-def order(x, count=0):
+def order(x, count: int = 0) -> int:
     if x / 10 >= 1:
         count += order(x / 10, count) + 1
     return count
@@ -99,7 +100,7 @@ def get_activity_worth(msg: str) -> int:
     return max(new_words - 2, 0)
 
 
-async def count_command(ctx):
+async def count_command(ctx) -> None:
     ctx.bot.stats["commands_counter"].update([ctx.command])
     ctx.bot.stats["users_counter"].update([ctx.author])
 
@@ -122,22 +123,23 @@ def basic_timedelta_to_string(delta: timedelta) -> str:
     return to_return
 
 
-def parse_item(item):
+def parse_item(item) -> tuple[str, str]:
     """Parse a single key="value" pair into a key value pair."""
     items = item.split("=", 1)  # Put extra occurances of = in the first
     key, value = items[0].strip(), items[1].replace('"', "")
     return key, value
 
 
-def parse_args(items):
+def parse_args(items) -> dict[str, str]:
     """Split arguments provdied as a string into a dict."""
-    args = dict()
+    args: dict[str, str] = dict()
     if not items:
         return args
 
-    quotes = False
-    starting, ending = 0, 0
-    name = "undefined"
+    quotes: bool = False
+    starting: int = 0
+    ending: int = 0
+    name: str = "undefined"
     for c in items:
         ending += 1
         if c == '"':
@@ -172,7 +174,7 @@ def log(message: typing.Any, severity="INFO") -> None:
     print(f"[{severity}] {repr(message)}")
 
 
-def to_file(text: str = "") -> discord.File:
+def to_file(text: typing.Union[str, list[str]] = "") -> discord.File:
     """
     Convert a string to a discord File object.
     :param text:
@@ -206,7 +208,7 @@ def today() -> str:
     return str(datetime.now(timezone.utc).date())
 
 
-async def usage_react(num: int, message: discord.Message):
+async def usage_react(num: int, message: discord.Message) -> None:
     """Converts a number from 1-9 to an CM_EMOJIS."""
     if num < 10:
         try:
@@ -240,7 +242,7 @@ async def parse_user(
         return None
 
 
-def scope():
+def scope() -> typing.Callable[..., bool]:
     async def not_in_excluded_guild(ctx):
         """Checks if a command is authorized to be used in this context"""
         excluded_guilds = [BANANO_GUID]
@@ -255,7 +257,7 @@ def scope():
     return not_in_excluded_guild
 
 
-def has_cm_role(user: discord.User, role: str, bot):
+def has_cm_role(user: discord.User, role: str, bot) -> bool:
     member = bot.get_guild(CM_GUID).get_member(user.id)
     if not member:
         return False
@@ -265,7 +267,7 @@ def has_cm_role(user: discord.User, role: str, bot):
     return False
 
 
-def is_citizen(user, bot):
+def is_citizen(user, bot) -> bool:
     member = bot.get_guild(BANANO_GUID).get_member(user.id)
     if not member:
         return False
@@ -275,7 +277,7 @@ def is_citizen(user, bot):
     return False
 
 
-def calc_msg_activity(bot, author: discord.User, content: str):
+def calc_msg_activity(bot, author: discord.User, content: str) -> int:
     # if not message.author.bot:
     words = content.lower().split(" ")
     # valid_words = []

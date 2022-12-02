@@ -1,7 +1,8 @@
 from dataclasses import dataclass
 from typing import Callable, Any, Union, Optional
 
-from discord import User
+import discord
+from discord.ext import commands
 
 from utils.cryptomonkey_util import cryptomonkey_dropper_admin, has_nifty
 from utils.exceptions import UnableToCompleteRequestedAction
@@ -17,7 +18,7 @@ from utils.settings import (
 )
 
 
-def yoshi_admin(user: User, bot):
+def yoshi_admin(user: discord.User, bot):
     """Uplift team members can drop an unlimited number of cards per day"""
     member = bot.get_guild(805449582124466206).get_member(user.id)
     for role in member.roles:
@@ -26,7 +27,7 @@ def yoshi_admin(user: User, bot):
     return False
 
 
-def user_is_authd_to_drop_yoshis(user: User, bot):
+def user_is_authd_to_drop_yoshis(user: discord.User, bot):
     """Uplift team members and community moderators can drop some cards every day."""
     member = bot.get_guild(805449582124466206).get_member(user.id)
     if member is None:
@@ -85,11 +86,11 @@ for g in [848626465373552701, 867775761163091999, 805449582124466206]:
 @dataclass
 class CollectionData:
     @staticmethod
-    def _drop_func(_user: User, _bot):
+    def _drop_func(_user: discord.User, _bot) -> bool:
         return False
 
     @staticmethod
-    def _admin_func(_user: User, _bot):
+    def _admin_func(_user: discord.User, _bot) -> bool:
         return False
 
     collection: str = ""
@@ -100,8 +101,8 @@ class CollectionData:
     emoji: str = "🎁"
     guild: int = 348929154114125827
     announce_ch: int = DEFAULT_FALLBACK_CHANNEL
-    drop_func: Callable = _drop_func
-    admin_func: Callable = _admin_func
+    drop_func: Callable[[discord.User, commands.Bot], bool] = _drop_func
+    admin_func: Callable[[discord.User, commands.Bot], bool] = _admin_func
     intro_role: Optional[int] = None
     intro_ch: Optional[int] = None
     daily_limit: int = 5
@@ -143,7 +144,9 @@ def get_guild_collection_info(guild_id: int) -> CollectionData:
     return get_collection_info(active_collections.get(guild_id, DEFAULT_WAX_COLLECTION))
 
 
-def determine_collection(guild: Any, sender: User, bot) -> tuple[int, CollectionData]:
+def determine_collection(
+    guild: Any, sender: discord.User, bot
+) -> tuple[int, CollectionData]:
     """Determine which collection a user can/wants to send cards from based on the guild and user. Also determines
     level of user's authorization: 0 is not auth'd for this collection, 1 is normal auth, 2 is unlimited."""
     if not guild:

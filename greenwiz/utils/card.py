@@ -436,7 +436,7 @@ boilerplate_monkey_api_response = {
 
 class Card:
     allowed_attrs = {
-        "name": "No Name",
+        "name": "Monkey",
         "address": "None",
         "seed": "Unknown",
         "key": None,
@@ -486,7 +486,8 @@ class Card:
             elif default is not None:
                 setattr(self, key, default)
         if self.name == self.allowed_attrs["name"] and self.address is not None:
-            if len(self.address) > 12:
+            if len(self.address) > 12:  # type:ignore[unreachable]
+                # definitely is reachable
                 self.name = self.address[5:12]
             elif len(self.address) > 5:
                 self.name = self.address[5:]

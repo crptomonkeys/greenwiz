@@ -10,10 +10,11 @@ atomic_api = base_atomic_api + "atomicassets/v1/"
 market_api = base_atomic_api + "atomicmarket/v1/"
 
 
-def ema(close, prev_close, num) -> float:
+def ema(close: float, prev_close: float, num: float) -> float:
     """Updates an exponential moving average one step."""
     ema_weight = 2 / float(num + 1)
-    return ((close - prev_close) * ema_weight) + prev_close
+    res: float = ((close - prev_close) * ema_weight) + prev_close
+    return res
 
 
 def fair_est(ema_: float, lowest_offer: float) -> float:
@@ -24,7 +25,7 @@ def fair_est(ema_: float, lowest_offer: float) -> float:
     if lowest_offer <= ema_:
         return lowest_offer
     factor = 3
-    regressed_average = (
+    regressed_average: float = (
         ema_
         + lowest_offer
         - ((ema_**factor) / 2 + lowest_offer**factor / 2) ** (1 / factor)
@@ -107,14 +108,15 @@ async def get_lowest_current_offer(
         json_obj = await response.json()
     if not json_obj.get("data", None):
         print(json_obj)
-        return -1
+        return -1.0
     min_priced_item = json_obj["data"][0]
     for item in json_obj["data"]:
         if int(item["price"]["amount"]) < int(min_priced_item["price"]["amount"]):
             min_priced_item = item
-    return int(min_priced_item["price"]["amount"]) / (
+    res = int(min_priced_item["price"]["amount"]) / (
         10 ** int(min_priced_item["price"]["token_precision"])
     )
+    return float(res)
 
 
 async def get_geometric_regressed_sale_price(

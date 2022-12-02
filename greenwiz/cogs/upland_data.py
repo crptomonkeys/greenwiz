@@ -2,6 +2,7 @@ import json
 import random
 from collections import Counter
 from datetime import datetime, timezone
+from typing import Any
 
 import discord
 import parsedatetime as pdt
@@ -18,9 +19,10 @@ from utils.settings import (
 )
 
 
-def time_stamp(item: dict) -> datetime:
+def time_stamp(item: dict[str, Any]) -> datetime:
     string_time = item["created_at"]
     cal = pdt.Calendar()
+    timestamp: datetime
     timestamp, _ = cal.parseDT(string_time.replace("T", " "), tzinfo=timezone.utc)
     return timestamp
 
@@ -30,7 +32,7 @@ async def visitors(
     property_id: int,
     start="2021-01-01",
     end=str(datetime.today),
-) -> Counter:
+) -> Counter[str]:
     cal = pdt.Calendar()
     start_stamp, _ = cal.parseDT(start, tzinfo=timezone.utc)
     end_stamp, _ = cal.parseDT(end, tzinfo=timezone.utc)
@@ -52,9 +54,9 @@ async def visitors(
 
 
 async def do_a_run(
-    session: ClientSession, props: list, start_time="last week", end_time="now"
-) -> Counter:
-    cumulative_visitors: Counter = Counter()
+    session: ClientSession, props: list[int], start_time="last week", end_time="now"
+) -> Counter[str]:
+    cumulative_visitors: Counter[str] = Counter()
     for prop in props:
         res = await visitors(session, prop, start=start_time, end=end_time)
         cumulative_visitors.update(res)

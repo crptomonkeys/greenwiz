@@ -558,7 +558,7 @@ class Wax(MetaCog):
             "You can't yet drop to addresses, and didn't enter a valid user mention."
         )  # TODO
 
-        if (
+        if (  # type:ignore[unreachable]
             ".wam" in member
             or len(member) == 12
             or member in self.bot.special_addr_list
