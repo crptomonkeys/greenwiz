@@ -122,7 +122,8 @@ async def attempt_to_send_daily_reward_ban_or_send_cm_instead(
     return msg
 
 
-async def send_daily_reward(author: discord.User, bot, base_luck_for_user: float = 1.0):
+async def send_daily_reward(ctx, bot, base_luck_for_user: float = 1.0):
+    author = ctx.author
     luck = random.random()
     reroll = random.random()
     secondary_success = (
@@ -147,7 +148,7 @@ async def send_daily_reward(author: discord.User, bot, base_luck_for_user: float
     else:
         record_user_opened_today_gift(author.id, "Coal")
         msg = "Whoops! You were naughty and only got coal from Santa today."
-    await author.send(msg)
+    await err(ctx, msg)
 
 
 async def send_daily_reward_cryptomonkey(bot, user: discord.Member) -> None:
@@ -243,7 +244,7 @@ class SantaBot(MetaCog):
                 "Sorry, you must either be a Banano citizen or active on the cryptomonKeys "
                 "server to use this command.",
             )
-        await send_daily_reward(ctx.author, self.bot, base_luck_for_user=base_luck)
+        await send_daily_reward(ctx, self.bot, base_luck_for_user=base_luck)
         try:
             await ctx.message.clear_reactions()
             await ctx.message.add_reaction(success_emoji)

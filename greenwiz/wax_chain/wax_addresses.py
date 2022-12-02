@@ -66,7 +66,7 @@ system_accounts = {
 }
 
 
-def is_valid_wax_address(addr: str, valid_specials: Optional[set] = None) -> bool:
+def is_valid_wax_address(addr: str, valid_specials: Optional[set[str]] = None) -> bool:
     """Returns whether the provided string is a valid wax address. An optional
     valid_specials allows injecting an up to date list of special wax addresses,
      otherwise the stored list will be used. It is recommended to use
@@ -89,7 +89,9 @@ def is_valid_wax_address(addr: str, valid_specials: Optional[set] = None) -> boo
     return base.group("a") in valid_specials | extra_specials
 
 
-def parse_wax_address(text: str, valid_specials: Optional[set] = None) -> Optional[str]:
+def parse_wax_address(
+    text: str, valid_specials: Optional[set[str]] = None
+) -> Optional[str]:
     """Returns the first valid wax address in a provided string, if there is one.
     To match, an address must be surrounded by whitespace. Returns None on no match.
     An optional valid_specials allows injecting an up to date list of special wax

@@ -72,8 +72,8 @@ class Googleapi(MetaCog):
         ctx,
         sheet_code: str,
         role_required: Optional[str] = None,
-        discord_range: str = None,
-        wax_range: str = None,
+        discord_range: str = "",
+        wax_range: str = "",
     ):
         """Makes a list of addresses from a spreadsheet that fit the following criteria:
         discord usernames are unique, present in the cryptomonkeys server, and have
@@ -87,7 +87,7 @@ class Googleapi(MetaCog):
             discord_range = "'Form Responses 1'!H2:H"
             wax_range = "'Form Responses 1'!G2:G"
 
-        if not discord_range or not wax_range:
+        if discord_range == "" or wax_range == "":
             raise InvalidInput(
                 "discord_range and wax_range are required if the sheet isn't a known one."
             )

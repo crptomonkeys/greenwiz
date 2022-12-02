@@ -14,10 +14,10 @@ def gen_salt() -> str:
     return str(keypair.sign(prep_data))
 
 
-def setsalt(salt: str = None, authorization=None) -> types.EosAction:
+def setsalt(salt: str = "", authorization=None) -> types.EosAction:
     if authorization is None:
         authorization = []
-    if salt is None:
+    if salt == "":
         salt = gen_salt()
     return types.EosAction(
         account=contract, name="setsalt", authorization=authorization, data={salt}
