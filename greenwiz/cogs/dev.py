@@ -57,7 +57,6 @@ class Dev(MetaCog):
     async def dev_echo(self, ctx: commands.Context, *, message: str):
         """
         Have the bot repeat your message.
-        Requires: Auth level 1
         """
         try:
             await ctx.message.delete()  # delete the command
@@ -77,7 +76,6 @@ class Dev(MetaCog):
     ):
         """
         DM someone from the bot.
-        Requires: Auth level 2
         User: The user to message
         Message: The message to send
         """
@@ -98,7 +96,6 @@ class Dev(MetaCog):
     async def autho(self, ctx):
         """
         Check the auth level of a user
-        Requires: Auth level 1
         Member: The discord member to check the auth level of
         You can use auth set <user> <level> if you have auth level 7
         """
@@ -110,7 +107,6 @@ class Dev(MetaCog):
     async def restart(self, ctx) -> None:
         """
         Restart the bot... hopefully. A lot could go wrong with this, so relying on it isn't recommended.
-        Requires: Auth level 5
         :return:
         :rtype:
         """
@@ -198,8 +194,6 @@ class Dev(MetaCog):
     async def load(self, ctx: commands.Context, extension: str) -> None:
         """
         Load a specified cog dynamically from the cogs folder.
-        Requires: Auth level 4
-        :param ctx:
         :param extension: The name of the cog to unload
         """
         # Sanitize input
@@ -214,7 +208,6 @@ class Dev(MetaCog):
     async def unload(self, ctx: commands.Context, extension: str):
         """
         Unload a cog
-        Requires: Auth level 4
         Extension: The cog to unload
         """
         # Sanitize input
@@ -230,7 +223,6 @@ class Dev(MetaCog):
     async def reload(self, ctx: commands.Context, extension: str):
         """
         Reload a cog
-        Requires: Auth level 4
         Extension: The cog to reload
         """
         # Sanitize input
@@ -250,7 +242,6 @@ class Dev(MetaCog):
     async def status(self, ctx: commands.Context, *, message: str = ""):
         """
         Change the bot's "playing" status
-        Requires: Auth level 5
         Message: The message to change it to
         """
         await self.bot.change_presence(activity=discord.Game(message))
@@ -315,7 +306,6 @@ class Dev(MetaCog):
     async def delete(self, ctx: commands.Context, message_id: int):
         """
         Delete a single message by ID
-        Requires: Auth 6.
         Used for cleaning up bot mistakes.
         """
         await (await ctx.channel.fetch_message(message_id)).delete()

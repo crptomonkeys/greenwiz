@@ -6,7 +6,7 @@ import aiohttp
 from discord.ext import commands
 
 from utils.meta_cog import MetaCog
-from utils.util import utcnow
+from utils.util import utcnow, log
 from utils.settings import ADVENT_OF_CODE_COOKIE
 
 LEADERBOARD = "https://adventofcode.com/2022/leaderboard/private/view/193648.json"
@@ -42,12 +42,12 @@ def parse_lb(raw: dict[str, Any]) -> list[dict[str, dict[str, Union[str, int]]]]
 
 def prep_embed_content(members: list[dict[str, Any]]) -> str:
     """Formats the leaderboard list for embed content."""
-    print(f"{members=}")
+    log(f"{members=}", "DBUG")
     resp = "```"
     i = 0
     for member in members:
         i += 1
-        print(f"{i=}, {member['name']=}, {member['stars']=}, {member['score']=}")
+        log(f"{i=}, {member['name']=}, {member['stars']=}, {member['score']=}", "DBUG")
         resp += f"{i:<2}) {member['name'][:15]: <15} ({member['stars']:>2} stars) - {member['score']:>4} points\n"
         if len(resp) > 900:
             resp += "```"
@@ -73,7 +73,6 @@ class AdventOfCode(MetaCog):
             not self.bot.aoc_cache_time
             or (datetime.now() - self.bot.aoc_cache_time).total_seconds() > 15 * 60
         ):
-            print("refetching")
             self.bot.aoc_cache = await get_lb(self.bot.session)
             self.bot.aoc_cache_time = datetime.now()
         top: list[dict[str, Any]] = parse_lb(self.bot.aoc_cache)
