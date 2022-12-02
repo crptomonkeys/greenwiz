@@ -8,6 +8,9 @@ from discord.ext import commands
 
 from utils.meta_cog import MetaCog
 from utils.util import utcnow
+from utils.exceptions import UnableToCompleteRequestedAction
+
+GIT_URL = "https://github.com/crptomonkeys/greenwiz"
 
 
 def format_commit(commit):
@@ -41,7 +44,15 @@ class About(MetaCog):
         _name = "Built by Vyryn for cryptomonKeys.cc"
         if self.bot.settings.ENV != "prod":
             _name += f" (Running in {self.bot.settings.ENV})"
-        repo = pygit2.Repository(".git")
+        try:
+            repo = pygit2.Repository(".git")
+        except pygit2.GitError:
+            try:
+                repo = pygit2.Repository("../.git")
+            except pygit2.GitError:
+                raise UnableToCompleteRequestedAction(
+                    "Sorry, my git repo isn't configured correctly for the about command at the moment."
+                )
         commits = list(
             itertools.islice(
                 repo.walk(repo.head.target, pygit2.GIT_SORT_TOPOLOGICAL), 5
@@ -62,7 +73,7 @@ class About(MetaCog):
         embed.set_author(
             name=_name,
             icon_url=owner.display_avatar.url,
-            url="https://github.com/crptomonkeys/greenwiz",
+            url=GIT_URL,
         )
 
         unique_members = len(self.bot.users)
