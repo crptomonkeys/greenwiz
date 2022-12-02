@@ -400,6 +400,7 @@ class Dev(MetaCog):
             elif spec in ["^*", "*^"]:
                 ctx.bot.tree.clear_commands(guild=None)
                 synced = await ctx.bot.tree.sync()
+                synced = []
             else:
                 synced = await ctx.bot.tree.sync()
             await ctx.send(
