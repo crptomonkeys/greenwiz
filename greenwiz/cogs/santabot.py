@@ -44,7 +44,7 @@ async def send_ban_to_user(
     )
     response = await session.get(f"{connect_url}{drop_banano_endpoint}?{params}")
 
-    json_rep: dict[str, Any] = {}
+    json_resp: dict[str, Any] = {}
     try:
         json_resp = await response.json()
     except aiohttp.ClientConnectionError:
