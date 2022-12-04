@@ -43,6 +43,8 @@ async def send_ban_to_user(
         f"uid={user.id}&code={settings.BANANO_DISTRIBUTION_AUTH_CODE}&amount={amount}"
     )
     response = await session.get(f"{connect_url}{drop_banano_endpoint}?{params}")
+
+    json_rep: dict[str, Any] = {}
     try:
         json_resp = await response.json()
     except aiohttp.ClientConnectionError:
