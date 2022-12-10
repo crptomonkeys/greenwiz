@@ -120,7 +120,7 @@ async def attempt_to_send_daily_reward_ban_or_send_cm_instead(
         await send_daily_reward_cryptomonkey(bot, user)
         msg = """Looks like you haven't yet registered for https://connect.cryptomonkeys.cc/
          or haven't yet added your ban address to it. You would have gotten banano, but
-         I couldn't send it so instead you get a cryptomonKey from Santa, pretty cool."""
+         I couldn't send it so instead you get a cryptomonKeys NFT from Santa, pretty cool."""
     return msg
 
 
@@ -146,7 +146,7 @@ async def send_daily_reward(ctx, bot, base_luck_for_user: float = 1.0):
 
     elif luck > 0.5:
         await send_daily_reward_cryptomonkey(bot, author)
-        msg = "You got a cryptomonKey from Santa, cool!"
+        msg = "You got a cryptomonKeys NFT from Santa, cool!"
     else:
         record_user_opened_today_gift(author.id, "Coal")
         msg = "Whoops! You were naughty and only got coal from Santa today."
