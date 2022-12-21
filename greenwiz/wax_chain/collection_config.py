@@ -15,6 +15,8 @@ from utils.settings import (
     MONKEYMATCH_ACC_NAME,
     CM_GUID,
     DEFAULT_FALLBACK_CHANNEL,
+    BAD_SANTA_ACC_NAME,
+    BAD_SANTA_PRIV_KEY,
 )
 
 
@@ -74,6 +76,14 @@ collections = {
         "collection": "none",
         "drop_ac": MONKEYMATCH_ACC_NAME,
         "priv_key": MONKEYMATCH_PRIV_KEY,
+    },
+    "badsantamnky": {
+        "collection": "crptomonkeys",
+        "drop_ac": BAD_SANTA_ACC_NAME,
+        "priv_key": BAD_SANTA_PRIV_KEY,
+        "emoji": "<:vase:769372650387537951>",
+        "guild": CM_GUID,
+        "announce_ch": 763776455338360883,
     },
 }
 

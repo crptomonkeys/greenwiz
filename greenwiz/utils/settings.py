@@ -200,6 +200,8 @@ try:
     BLACKLIST_REMOVE = settings_priv.BLACKLIST_REMOVE
     BLACKLIST_GET = settings_priv.BLACKLIST_GET
     ADVENT_OF_CODE_COOKIE = settings_priv.ADVENT_OF_CODE_COOKIE
+    BAD_SANTA_ACC_NAME = settings_priv.BAD_SANTA_ACC_NAME
+    BAD_SANTA_PRIV_KEY = settings_priv.BAD_SANTA_PRIV_KEY
 
     ENV = settings_priv.ENV
 
@@ -233,6 +235,8 @@ except ImportError:
     BLACKLIST_REMOVE = os.getenv("BLACKLIST_REMOVE")
     BLACKLIST_GET = os.getenv("BLACKLIST_GET")
     ADVENT_OF_CODE_COOKIE = os.getenv("ADVENT_OF_CODE_COOKIE")
+    BAD_SANTA_ACC_NAME = os.getenv("BAD_SANTA_ACC_NAME")
+    BAD_SANTA_PRIV_KEY = os.getenv("BAD_SANTA_PRIV_KEY")
 
     ENV = os.getenv("ENV")
 

@@ -17,13 +17,8 @@ from utils.green_api_wrapper import GreenApi, GreenApiException
 from utils.logic_parser import parse_addresses
 from utils.meta_cog import MetaCog
 from utils.settings import (
-    WAX_PRIV_KEY,
     WAX_ACC_NAME,
-    YOSHI_ACC_NAME,
-    YOSHI_PRIV_KEY,
     DEFAULT_WAX_COLLECTION,
-    MONKEYMATCH_ACC_NAME,
-    MONKEYMATCH_PRIV_KEY,
     CM_GUID,
     CHATLOOT_TIMEOUT_NOTIF_INTERVAL,
 )
@@ -70,15 +65,10 @@ class Wax(MetaCog):
         self.update_bot_known_assets.start()
         self.bot.log("Started the update_bot_known_assets task (1).", self.bot.debug)
         self.bot.wax_ac = dict()
-        self.bot.wax_ac["crptomonkeys"] = EosAccount(
-            name=WAX_ACC_NAME, private_key=WAX_PRIV_KEY
-        )
-        self.bot.wax_ac["lgnd.art"] = EosAccount(
-            name=YOSHI_ACC_NAME, private_key=YOSHI_PRIV_KEY
-        )
-        self.bot.wax_ac["monkeysmatch"] = EosAccount(
-            name=MONKEYMATCH_ACC_NAME, private_key=MONKEYMATCH_PRIV_KEY
-        )
+        for key, value in collections.items():
+            self.bot.wax_ac[key] = EosAccount(
+                name=value["drop_ac"], private_key=value["priv_key"]
+            )
         if not hasattr(self.bot, "green_api"):
             self.bot.green_api = GreenApi(self.session)
         self.bot.wax_con = WaxConnection(self.bot)
@@ -732,9 +722,9 @@ class Wax(MetaCog):
             asset_ids: set[int] = set()
             page = 1
             while True:
+                param = f'assets?owner={value["drop_ac"]}&limit=1000&collection_whitelist={value["collection"]}'
                 async with self.session.get(
-                    atomic_api
-                    + f'assets?owner={value["drop_ac"]}&limit=1000&collection_whitelist={key}&page={page}'
+                    atomic_api + param + f"&page={page}"
                 ) as resp:
                     try:
                         response = (await resp.json())["data"]

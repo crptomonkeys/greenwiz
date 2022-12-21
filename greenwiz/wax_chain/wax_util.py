@@ -754,6 +754,10 @@ class WaxConnection:
             f"Random {collection} reward for {user}."
         else:
             memo += f" ({user})"
+        if not hasattr(self.bot, "cached_card_ids"):
+            raise UnableToCompleteRequestedAction(
+                "I'm still loading my cache on startup, try again in a few minutes."
+            )
         if len(self.bot.cached_card_ids[collection]) < 1:
             raise NoCardsException(
                 f"The {collection} Tip Bot account is empty, so I can't send {user} any more "
