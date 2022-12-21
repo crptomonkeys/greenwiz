@@ -17,13 +17,8 @@ from utils.green_api_wrapper import GreenApi, GreenApiException
 from utils.logic_parser import parse_addresses
 from utils.meta_cog import MetaCog
 from utils.settings import (
-    WAX_PRIV_KEY,
     WAX_ACC_NAME,
-    YOSHI_ACC_NAME,
-    YOSHI_PRIV_KEY,
     DEFAULT_WAX_COLLECTION,
-    MONKEYMATCH_ACC_NAME,
-    MONKEYMATCH_PRIV_KEY,
     CM_GUID,
     CHATLOOT_TIMEOUT_NOTIF_INTERVAL,
 )
@@ -727,9 +722,9 @@ class Wax(MetaCog):
             asset_ids: set[int] = set()
             page = 1
             while True:
+                param = f'assets?owner={value["drop_ac"]}&limit=1000&collection_whitelist={value["collection"]}'
                 async with self.session.get(
-                    atomic_api
-                    + f'assets?owner={value["drop_ac"]}&limit=1000&collection_whitelist={value["collection"]}&page={page}'
+                    atomic_api + param + f"&page={page}"
                 ) as resp:
                     try:
                         response = (await resp.json())["data"]
