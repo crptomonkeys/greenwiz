@@ -70,15 +70,10 @@ class Wax(MetaCog):
         self.update_bot_known_assets.start()
         self.bot.log("Started the update_bot_known_assets task (1).", self.bot.debug)
         self.bot.wax_ac = dict()
-        self.bot.wax_ac["crptomonkeys"] = EosAccount(
-            name=WAX_ACC_NAME, private_key=WAX_PRIV_KEY
-        )
-        self.bot.wax_ac["lgnd.art"] = EosAccount(
-            name=YOSHI_ACC_NAME, private_key=YOSHI_PRIV_KEY
-        )
-        self.bot.wax_ac["monkeysmatch"] = EosAccount(
-            name=MONKEYMATCH_ACC_NAME, private_key=MONKEYMATCH_PRIV_KEY
-        )
+        for key, value in collections.items():
+            self.bot.wax_ac[key] = EosAccount(
+                name=value["drop_ac"], private_key=value["priv_key"]
+            )
         if not hasattr(self.bot, "green_api"):
             self.bot.green_api = GreenApi(self.session)
         self.bot.wax_con = WaxConnection(self.bot)
@@ -734,7 +729,7 @@ class Wax(MetaCog):
             while True:
                 async with self.session.get(
                     atomic_api
-                    + f'assets?owner={value["drop_ac"]}&limit=1000&collection_whitelist={key}&page={page}'
+                    + f'assets?owner={value["drop_ac"]}&limit=1000&collection_whitelist={value["collection"]}&page={page}'
                 ) as resp:
                     try:
                         response = (await resp.json())["data"]

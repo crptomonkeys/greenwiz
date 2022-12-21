@@ -79,7 +79,7 @@ collections = {
     },
     "badsantamnky": {
         "collection": "crptomonkeys",
-        "drop_acc": BAD_SANTA_ACC_NAME,
+        "drop_ac": BAD_SANTA_ACC_NAME,
         "priv_key": BAD_SANTA_PRIV_KEY,
         "emoji": "<:vase:769372650387537951>",
         "guild": CM_GUID,

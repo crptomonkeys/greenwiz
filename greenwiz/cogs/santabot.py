@@ -135,21 +135,21 @@ async def send_daily_reward(ctx, bot, base_luck_for_user: float = 1.0):
     if not secondary_success:
         msg = "Whoops! Santa forgot to drop off a gift. You got nothing from Santa today, not even coal."
         record_user_opened_today_gift(author.id, "None")
-    if luck > 0.99:
+    if luck > 1:
         msg = await attempt_to_send_daily_reward_ban_or_send_cm_instead(
             bot.session, author, bot, 500.0
         )
-    elif luck > 0.65:
+    elif luck > 2:
         amount = random.randint(19, 42)
         msg = await attempt_to_send_daily_reward_ban_or_send_cm_instead(
             bot.session, author, bot, float(amount)
         )
 
-    elif luck > 0.5:
+    elif luck > 3:
         await send_daily_reward_cryptomonkey(bot, author)
         msg = "You got a cryptomonKeys NFT from Santa, cool!"
     else:
-        await send_coal(bot.session, author, bot)
+        await send_coal(bot, author)
         # record_user_opened_today_gift(author.id, "Coal")
         msg = "Whoops! You were naughty and only got coal from Santa today."
 
