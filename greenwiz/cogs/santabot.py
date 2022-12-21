@@ -149,8 +149,10 @@ async def send_daily_reward(ctx, bot, base_luck_for_user: float = 1.0):
         await send_daily_reward_cryptomonkey(bot, author)
         msg = "You got a cryptomonKeys NFT from Santa, cool!"
     else:
-        record_user_opened_today_gift(author.id, "Coal")
+        await send_coal(bot.session, author, bot)
+        # record_user_opened_today_gift(author.id, "Coal")
         msg = "Whoops! You were naughty and only got coal from Santa today."
+
     await err(ctx, msg)
 
 
@@ -159,6 +161,15 @@ async def send_daily_reward_cryptomonkey(bot, user: discord.Member) -> None:
     link = await bot.wax_con.get_random_claim_link(str(user), memo=memo)
     claim_id = await announce_and_send_link(bot, link, user, memo)
     record_user_opened_today_gift(user.id, f"cryptomonKey #{claim_id}")
+
+
+async def send_coal(bot, user: discord.Member) -> None:
+    memo = f"Santa's coal for {user.name} on {today()}"
+    link = await bot.wax_con.get_random_claim_link(
+        str(user), memo=memo, collection=settings.BAD_SANTA_ACC_NAME
+    )
+    claim_id = await announce_and_send_link(bot, link, user, memo)
+    record_user_opened_today_gift(user.id, f"Coal #{claim_id}")
 
 
 async def send_daily_reward_ban(
