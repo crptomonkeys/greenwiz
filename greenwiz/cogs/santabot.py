@@ -118,9 +118,11 @@ async def attempt_to_send_daily_reward_ban_or_send_cm_instead(
         if amount > 200:
             msg = f"You got {amount} ban from Santa, jackpot!"
     except ConnectFailedToSendBan:
-        return (
-            "Sorry, looks like Santa is all done for this year. Better luck next year."
-        )
+        return """Sorry, looks like Santa is all done for this year.
+         Better luck next year.
+         (Also possible: I may not have a banano address for you.
+         If you aren't registered with bananobot++ and haven't linked your ban account on
+         https://connect.cryptomonkeys.cc I can't send you any ban.)"""
         # await send_daily_reward_cryptomonkey(bot, user)
         # msg = """Looks like you haven't yet registered for https://connect.cryptomonkeys.cc/
         # or haven't yet added your ban address to it. You would have gotten banano, but
