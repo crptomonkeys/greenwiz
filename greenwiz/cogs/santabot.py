@@ -118,40 +118,43 @@ async def attempt_to_send_daily_reward_ban_or_send_cm_instead(
         if amount > 200:
             msg = f"You got {amount} ban from Santa, jackpot!"
     except ConnectFailedToSendBan:
-        await send_daily_reward_cryptomonkey(bot, user)
-        msg = """Looks like you haven't yet registered for https://connect.cryptomonkeys.cc/
-         or haven't yet added your ban address to it. You would have gotten banano, but
-         I couldn't send it so instead you get a cryptomonKeys NFT from Santa, pretty cool."""
+        return (
+            "Sorry, looks like Santa is all done for this year. Better luck next year."
+        )
+        # await send_daily_reward_cryptomonkey(bot, user)
+        # msg = """Looks like you haven't yet registered for https://connect.cryptomonkeys.cc/
+        # or haven't yet added your ban address to it. You would have gotten banano, but
+        # I couldn't send it so instead you get a cryptomonKeys NFT from Santa, pretty cool."""
     return msg
 
 
 async def send_daily_reward(ctx, bot, base_luck_for_user: float = 1.0):
     author = ctx.author
-    luck = random.random()
-    reroll = random.random()
-    secondary_success = (
-        reroll < base_luck_for_user
-    )  # Secondary roll to make rewards more likely for higher role users
-    if not secondary_success:
-        msg = "Whoops! Santa forgot to drop off a gift. You got nothing from Santa today, not even coal."
-        record_user_opened_today_gift(author.id, "None")
-    if luck > 0.99:
-        msg = await attempt_to_send_daily_reward_ban_or_send_cm_instead(
-            bot.session, author, bot, 500.0
-        )
-    elif luck > 0.6:
-        amount = random.randint(19, 42)
-        msg = await attempt_to_send_daily_reward_ban_or_send_cm_instead(
-            bot.session, author, bot, float(amount)
-        )
+    # luck = random.random()
+    # reroll = random.random()
+    # secondary_success = (
+    #    reroll < base_luck_for_user
+    # )  # Secondary roll to make rewards more likely for higher role users
+    # if not secondary_success:
+    #    msg = "Whoops! Santa forgot to drop off a gift. You got nothing from Santa today, not even coal."
+    #    record_user_opened_today_gift(author.id, "None")
+    # if luck > 0.99:
+    #    msg = await attempt_to_send_daily_reward_ban_or_send_cm_instead(
+    #        bot.session, author, bot, 500.0
+    #    )
+    # elif luck > 0.6:
+    amount = random.randint(50, 100)
+    msg = await attempt_to_send_daily_reward_ban_or_send_cm_instead(
+        bot.session, author, bot, float(amount)
+    )
 
-    elif luck > 0.3:
-        await send_daily_reward_cryptomonkey(bot, author)
-        msg = "You got a cryptomonKeys NFT from Santa, cool!"
-    else:
-        await send_coal(bot, author)
-        # record_user_opened_today_gift(author.id, "Coal")
-        msg = "Whoops! You were naughty and only got coal from Santa today."
+    # elif luck > 0.3:
+    #    await send_daily_reward_cryptomonkey(bot, author)
+    #    msg = "You got a cryptomonKeys NFT from Santa, cool!"
+    # else:
+    #    await send_coal(bot, author)
+    #    # record_user_opened_today_gift(author.id, "Coal")
+    #    msg = "Whoops! You were naughty and only got coal from Santa today."
 
     await err(ctx, msg)
 
