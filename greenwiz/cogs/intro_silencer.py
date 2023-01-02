@@ -15,9 +15,7 @@ class IntroSilencer(MetaCog):
         if message.channel.id != 758054443479597077:
             return
 
-        role: commands.Snowflake = commands.Snowflake(
-            message.guild.get_role(816406154778378322)
-        )
+        role: discord.Role = message.guild.get_role(816406154778378322)
         if not isinstance(message.author, discord.Member):
             raise AssertionError(
                 "Guild messages' author attribute should always be a Member."

@@ -6,6 +6,8 @@ import time
 url = "https://api.wax.alohaeos.com:443"
 endpoint = "/v2/history/get_actions"
 
+starting_timestamp = "2022-12-15T00:00:00.000"
+
 
 def get_one(account="dao.worlds", actname="votecust", after=None, limit=1000) -> str:
     composed = f"{url}{endpoint}?account={account}&act.name={actname}&limit={limit}"
@@ -14,22 +16,24 @@ def get_one(account="dao.worlds", actname="votecust", after=None, limit=1000) ->
     res = requests.get(composed)
     res.raise_for_status()
     result = json.loads(res.content)
+    print(result)
     return result
 
 
-def get_all() -> str:
+def get_all(starting_timestamp) -> str:
     results = []
     while True:
         try:
-            response = get_one()
-            results.extend(action["act"] for action in response["actions"])
+            response = get_one(after=starting_timestamp)
+            new_actions = [action["act"] for action in response["actions"]]
+            results.extend(new_actions)
             last_timestamp = response["actions"][-1]["timestamp"]
         except (IndexError, requests.exceptions.HTTPError):
             return results
         print(
             f"got {len(response['actions'])=} results, {len(results)=} sleeping for 3s..."
         )
-        if len(results) >= 15000:
+        if len(new_actions) < 1000 or len(results) >= 15000:
             return results
         time.sleep(3)
         response = get_one(after=last_timestamp)
@@ -37,7 +41,7 @@ def get_all() -> str:
 
 
 def get_selected():
-    response = get_all()
+    response = get_all(starting_timestamp)
     relevants = dict()
     for x in response:
         if x["data"]["voter"] in relevants:  # ignore prior votes
@@ -45,19 +49,22 @@ def get_selected():
         if x["data"]["dac_id"] != "nerix":
             continue
         relevants[x["data"]["voter"]] = x["data"]["newvotes"]
-    # relevants = {
-    #     x["data"]["voter"]: x["data"]["newvotes"]
-    #     for x in response
-    #     if x["data"]["dac_id"] == "nerix"
-    # }
+    relevants = {
+        x["data"]["voter"]: x["data"]["newvotes"]
+        for x in response
+        if x["data"]["dac_id"] == "nerix"
+    }
     print(f"{relevants=}")
     print(f"{len(relevants)=}")
+    return relevants
 
 
-relevants = {}
+__relevants = {}
 
 
-def sort_relevants():
+def sort_relevants(relevants=None):
+    if relevants is None:
+        relevants = __relevants
     valid_addresses = []
     voted_both = []
     for key, value in relevants.items():
@@ -69,13 +76,15 @@ def sort_relevants():
 
 
 if __name__ == "__main__":
-    # get_selected()
-    both, valid = sort_relevants()
+    rel = get_selected()
+    both, valid = sort_relevants(rel)
     both_c = ",".join(x for x in both)
     valid_c = ",".join(x for x in valid)
-    print(f"The following people voted for both of our candidates:\n{both_c}")
+    print(
+        f"The following people voted for both of our candidates since {starting_timestamp}:\n{both_c}"
+    )
     print(
         f"The following people voted for one of our candidates but not the other:\n{valid_c}"
     )
-    print(f"{len(both)=}")
-    print(f"{len(valid)=}")
+    print(f"{len(both)} voted for both.")
+    print(f"{len(valid)} voted for one but not the other.")
