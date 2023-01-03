@@ -256,10 +256,9 @@ class EosJsonRpcWrapper(EosJsonRpc):
             json = {}
         if self.ses is not None:
             async with self.ses.post(f"{self.URL}/v1{endpoint}", json=json) as res:
+                resp_dict: Optional[dict[str, Any]] = None
                 try:
-                    resp_dict: Optional[dict[str, Any]] = await res.json(
-                        content_type=None
-                    )
+                    resp_dict = await res.json(content_type=None)
                 except JSONDecodeError:
                     resp_dict = {"code": 500, "error": {"name": "JSONDecodeError"}}
                 finally:
@@ -343,6 +342,10 @@ class WaxConnection:
         failed_rpcs, suc = set(), "None"
         chain_id: bytes = b""
         block: Optional[dict[str, Any]] = None
+        if len(actions) < 1:
+            raise AssertionError(
+                "Invalid transaction composed, a transaction must have at least one action."
+            )
         self.log(f"Executing a transaction, actions: {actions}")
 
         # Try getting the head block from each rpc until one succeeds
@@ -670,31 +673,47 @@ class WaxConnection:
             f"unable to confirm the transaction through any of them."
         )
 
+    async def cancel_claimlinks(
+        self,
+        link_ids: list[int],
+        collection: str = DEFAULT_WAX_COLLECTION,
+        _max: int = 50,
+    ) -> tuple[bool, str]:
+        """Cancels all the links with the specified IDs.
+        Raises an exception if there are more than _max links due to chain CPU constraints."""
+        if len(link_ids) > _max:
+            raise AssertionError(
+                f"""{len(link_ids)} is too many claim links to cancel in one transaction,
+                 max is {_max} due to on-chain CPU constraints."""
+            )
+        self.log(f"Cancellink claimlinks {link_ids} for collection {collection}.")
+        actions = [
+            atomictoolsx.cancellink(
+                link_id=i,
+                authorization=[
+                    self.wax_ac[collection].authorization(TIP_ACC_PERMISSION)
+                ],
+            )
+            for i in link_ids
+        ]
+        result = await self.execute_transaction(actions, sender_ac=collection)
+        tx_id = result["transaction_id"]
+        processed = result.get("processed", dict())
+        receipt = processed.get("receipt", dict())
+        self.log(receipt)
+        status = receipt.get("status", "errored")
+        self.log(
+            f"Claimlinks {link_ids} cancellation. Result is: {result}, transaction id is {tx_id}"
+        )
+        return status, tx_id
+
     async def cancel_claimlink(
         self,
         link_id: int,
         collection: str = DEFAULT_WAX_COLLECTION,
     ) -> tuple[bool, str]:
         """Cancels the claimlink with the specified id."""
-        self.log(f"Cancelling claimlink {link_id}.")
-        actions = [
-            atomictoolsx.cancellink(
-                link_id=link_id,
-                authorization=[
-                    self.wax_ac[collection].authorization(TIP_ACC_PERMISSION)
-                ],
-            ),
-        ]
-        result = await self.execute_transaction(actions, sender_ac=collection)
-        tx_id = result["transaction_id"]
-        processed = result.get("processed", dict())
-        receipt = processed.get("receipt", dict())
-        print(receipt)
-        status = receipt.get("status", "errored")
-        self.log(
-            f"Claimlink {link_id} cancellation. Result is: {result}, transaction id is {tx_id}"
-        )
-        return status, tx_id
+        return await self.cancel_claimlinks([link_id], collection=collection)
 
     async def create_claimlink(
         self,

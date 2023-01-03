@@ -41,7 +41,7 @@ from wax_chain.wax_util import (
     send_link_start_to_finish,
     get_card_dict,
 )
-from wax_chain.link_deletion import delete_old_links
+from wax_chain import link_deletion
 from wax_chain.wax_addresses import (
     is_valid_wax_address,
     async_get_special_wax_address_list,
@@ -347,13 +347,29 @@ class Wax(MetaCog):
     @commands.command(description="Cancel old claimlinks.")
     @commands.check(monkeyprinter())
     @commands.check(scope())
-    async def cancel_old_links(self, ctx: commands.Context, *, links):
-        try:
-            links_dict = json.loads(links)
-        except json.JSONDecodeError:
-            raise InvalidInput("Invalid list of claimlink ints.")
-        await delete_old_links(ctx, self.bot.wax_con, links_dict)
-        await ctx.send("Delete complete.")
+    async def cancel_old_links(
+        self,
+        ctx: commands.Context,
+        collection: str = DEFAULT_WAX_COLLECTION,
+        days_old: int = 91,
+    ):
+        links = await link_deletion.find_old_links_to_delete(
+            ctx, self.bot.wax_con, collection, days_old=days_old
+        )
+
+        self.log(f"Deleting {len(links)} old claimlinks: {links}.")
+        if len(links) < 1:
+            return await ctx.send(
+                f"There are no old links to delete for {collection} that are older than {days_old} days old."
+            )
+
+        result, tx_id = await link_deletion.delete_old_links(
+            ctx, self.bot.wax_con, links, collection=collection
+        )
+
+        await ctx.send(
+            f"{result.title()} https://wax.bloks.io/transaction/{tx_id}, deleted {len(links)} links."
+        )
 
     @commands.command(
         description="DMs someone a claim link for one of the specified card # from the tipbot account"
@@ -714,7 +730,7 @@ class Wax(MetaCog):
         except Forbidden:
             await ctx.send(error)
 
-    @tasks.loop(seconds=60)
+    @tasks.loop(seconds=300)
     async def update_bot_known_assets(self):
         if self.session.closed:
             return
