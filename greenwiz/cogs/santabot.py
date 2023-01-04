@@ -238,7 +238,7 @@ class SantaBot(MetaCog):
             "servers for many other ways to earn freebies."
         )
         return
-        log(f"Entering santa gift for {ctx.author}", "DBUG")
+        log(f"Entering santa gift for {ctx.author}", "DBUG")  # type: ignore[unreachable]
         # Verification checks
         await ctx.message.add_reaction("⌛")
         if ctx.channel.id not in [
