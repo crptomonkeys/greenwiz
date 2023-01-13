@@ -763,7 +763,7 @@ class WaxConnection:
             link_id = str(result).split("link_id': ")[1].split(",")[0]
             link_id = link_id[1:].split("'")[0]
 
-        link = f"https://wax.atomichub.io/trading/link/{link_id}?key={priv_key}"
+        link = f"https://wax.atomichub.io/trading/link/wax-mainnet/{link_id}?key={priv_key}"
         return link
 
     async def get_random_claim_link(
