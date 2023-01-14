@@ -1029,7 +1029,7 @@ async def send_link_start_to_finish(
     try:
         await message.add_reaction("⌛")
         link = await wax_con.get_random_claim_link(
-            str(member), reason, num=num, collection=collection
+            str(member)[:50], reason, num=num, collection=collection
         )
         assert "https://wax.atomichub.io/trading/link/" in link, (
             f"I received an invalid claimlink trying to send a claimlink to {member}. This shouldn't have happened, "
