@@ -9,7 +9,7 @@ import parsedatetime as pdt
 from aiohttp import ClientSession
 from discord.ext import commands
 
-from cogs.wax import nifty
+from utils.cryptomonkey_util import nifty
 from utils.exceptions import UnableToCompleteRequestedAction
 from utils.meta_cog import MetaCog
 from utils.settings import (
