@@ -1,13 +1,13 @@
-from typing import Set, Any, Optional
+from typing import Set, Any, Optional, Union
 
 import aiohttp.web_exceptions
 
 from utils.exceptions import InvalidInput
 from utils.settings import (
-    BLACKLIST_ADD,
-    BLACKLIST_REMOVE,
     BLACKLIST_GET,
+    AW_BLACKLIST,
     BLACKLIST_AUTH_CODE,
+    AW_BLACKLIST_AUTH_KEY,
     CMSTATS_SERVER,
 )
 from utils.util import utcnow
@@ -26,7 +26,8 @@ class GreenApi:
         self.limit = 1000
         self.server = server
         self.url_base = f"http://{self.server}"
-        self.cached_blacklist = set()
+        self.cached_blacklist: Set[str] = set()
+        self.cached_awblacklist: Set[str] = set()
         self.cache_updated = 0
 
     async def all_miners_for_cycle(
@@ -66,8 +67,23 @@ class GreenApi:
         resp: dict[str, Any] = await self.get_resp(url)
         return resp
 
-    async def get_resp(self, url: str) -> Any:
-        resp = await self.session.get(url)
+    async def get_resp(
+        self,
+        url: str,
+        headers: Optional[dict[str, str]] = None,
+        data: Optional[Union[str, dict[str, str]]] = None,
+        _type: str = "get",
+    ) -> Any:
+        if headers is None:
+            headers = dict()
+        if _type == "get":
+            resp = await self.session.get(url, headers=headers)
+        elif _type == "post":
+            resp = await self.session.post(url, data=data, headers=headers)
+        elif _type == "delete":
+            resp = await self.session.delete(url, data=data, headers=headers)
+        elif _type == "put":
+            resp = await self.session.put(url, data=data, headers=headers)
         resp.raise_for_status()
         js = await resp.json()
         if hasattr(js, "get") and js.get("error"):
@@ -81,7 +97,7 @@ class GreenApi:
 
         try:
             resp: dict[str, Any] = await self.get_resp(
-                f"{BLACKLIST_ADD}?code={BLACKLIST_AUTH_CODE}&wallet={address}"
+                f"{BLACKLIST_GET}add?code={BLACKLIST_AUTH_CODE}&wallet={address}"
             )
         except GreenApiException as e:
             return {"success": False, "exception": repr(e)}
@@ -95,7 +111,7 @@ class GreenApi:
 
         try:
             resp: dict[str, Any] = await self.get_resp(
-                f"{BLACKLIST_REMOVE}?code={BLACKLIST_AUTH_CODE}&wallet={address}"
+                f"{BLACKLIST_GET}remove?code={BLACKLIST_AUTH_CODE}&wallet={address}"
             )
         except GreenApiException as e:
             return {"success": False, "exception": repr(e)}
@@ -125,3 +141,83 @@ class GreenApi:
                 )
 
         return self.cached_blacklist
+
+    async def awblacklist_add(self, address: str) -> dict[str, Any]:
+        """Add a wax address to the blacklist"""
+        if "<" in address or ">" in address or "!" in address or "@" in address:
+            raise InvalidInput(f"{address} is not a valid wax address.")
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {AW_BLACKLIST_AUTH_KEY}",
+        }
+        try:
+            resp: dict[str, Any] = await self.get_resp(
+                f"{AW_BLACKLIST}add",
+                data=address,
+                headers=headers,
+                _type="post",
+            )
+        except GreenApiException as e:
+            return {"success": False, "exception": repr(e)}
+        self.awcache_updated = 0
+        return resp
+
+    async def awblacklist_remove(self, address: str) -> dict[str, Any]:
+        """Remove an address from the blacklist"""
+        if "<" in address or ">" in address or "!" in address or "@" in address:
+            raise InvalidInput(f"{address} is not a valid wax address.")
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {AW_BLACKLIST_AUTH_KEY}",
+        }
+        try:
+            resp: dict[str, Any] = await self.get_resp(
+                f"{AW_BLACKLIST}delete",
+                data=address,
+                headers=headers,
+                _type="delete",
+            )
+        except GreenApiException as e:
+            return {"success": False, "exception": repr(e)}
+        self.awcache_updated = 0
+        return resp
+
+    async def awget_blacklist(
+        self, force: bool = False, expiry: float = 60.0
+    ) -> Set[str]:
+        """Fetch the blacklist from source. Cache for a minute, but cache is rendered out of date by a call to
+        awblacklist_add or awblacklist_remove."""
+        if not force and utcnow().timestamp() - self.awcache_updated < expiry:
+            return self.cached_awblacklist
+        # Refresh cached_blacklist
+        limit: int = 1000
+        offset: int = 0
+        res = set()
+
+        def err(msg: str) -> set[str]:
+            print(
+                f"Encountered an error attempting to fetch the AW blacklist, returning cached "
+                f"blacklist. Result: {msg}"
+            )
+            return self.cached_awblacklist
+
+        while True:
+            results: Optional[list[dict[str, Any]]] = None
+            try:
+                response: dict[str, list[dict[str, Any]]] = await self.get_resp(
+                    f"{AW_BLACKLIST}list?limit={limit}&offset={offset}"
+                )
+                if results is None or not hasattr(results, "data"):
+                    return err(str(results))
+                results = response["data"]
+                if results is not None and len(results) > 0:
+                    res |= set([i["wallet"].replace(" ", "") for i in results])
+            except aiohttp.web_exceptions.HTTPError as e:
+                return err(e)
+            if not results:
+                return err("")
+            if len(results) < limit:
+                self.cache_updated = utcnow().timestamp()
+                self.cached_awblacklist = res
+                return self.cached_awblacklist
+            offset += limit
