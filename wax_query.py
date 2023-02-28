@@ -6,7 +6,7 @@ import time
 url = "https://api.wax.alohaeos.com:443"
 endpoint = "/v2/history/get_actions"
 
-starting_timestamp = "2023-01-12T00:00:00.000"
+starting_timestamp = "2023-02-13T00:00:00.000"
 
 
 def get_one(account="dao.worlds", actname="votecust", after=None, limit=1000) -> str:
@@ -16,16 +16,18 @@ def get_one(account="dao.worlds", actname="votecust", after=None, limit=1000) ->
     res = requests.get(composed)
     res.raise_for_status()
     result = json.loads(res.content)
-    print(result)
+    # print(result)
     return result
 
 
-def get_all(starting_timestamp) -> str:
+def get_all(_starting_timestamp) -> str:
     results = []
+    last_actions = []
     while True:
         try:
-            response = get_one(after=starting_timestamp)
+            response = get_one(after=_starting_timestamp)
             new_actions = [action["act"] for action in response["actions"]]
+            last_actions = new_actions
             results.extend(new_actions)
             last_timestamp = response["actions"][-1]["timestamp"]
         except (IndexError, requests.exceptions.HTTPError):
@@ -33,7 +35,12 @@ def get_all(starting_timestamp) -> str:
         print(
             f"got {len(response['actions'])=} results, {len(results)=} sleeping for 3s..."
         )
-        if len(new_actions) < 1000 or len(results) >= 15000:
+        if len(new_actions) < 1000 or last_actions == new_actions:
+            return results
+        if len(results) > 100_000:
+            print(
+                "Warning: more than 100,000 records were found; only 100,000 fetched."
+            )  # 62, 28
             return results
         time.sleep(3)
         response = get_one(after=last_timestamp)

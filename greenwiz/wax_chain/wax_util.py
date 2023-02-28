@@ -934,9 +934,12 @@ async def announce_and_send_link(
         )
 
     if announce:
-        to_announce = (
-            f"{cinfo.emoji} **{memo} Giveaway**\n{user.mention} ({user.id}) has been "
-            f"sent a random {cinfo.name} NFT, claim link #{claim_id}. Congrats!"
+        to_announce = f"{cinfo.emoji} **{memo} Giveaway**"
+        if user.guild is not None:
+            to_announce += f" *(in {user.guild})*"
+        to_announce += (
+            f"\n{user.mention} ({user.id}) has been sent a random {cinfo.name}"
+            f" NFT, claim link #{claim_id}. Congrats!"
         )
         channel = bot.get_guild(cinfo.guild).get_channel(cinfo.announce_ch)
         try:
