@@ -2,6 +2,7 @@
 /greenwiz/res/tmp/
 /venv/
 /vbotenv/
+/.venv/
 /.idea/
 /.tox/
 /.mypy_cache/
