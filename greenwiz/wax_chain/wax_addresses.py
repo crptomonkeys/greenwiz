@@ -111,14 +111,14 @@ def get_special_wax_address_list() -> set[str]:
     specials = fallback_special_wax_addresses()
     while True:
         with requests.get(f"{QUERY_SPECIALS_URL}{page}&sort=rank&type=sold") as resp:
-            if int(resp.status_code) != 200:
+            if int(resp.status_code) != 200:  # type: ignore[attr-defined]
                 print(
                     f"Unable to update special wax addresses at the moment, "
-                    f" using stored list. Received status {resp.status_code}"
+                    f" using stored list. Received status {resp.status_code}"  # type: ignore[attr-defined]
                 )
                 return specials
             try:
-                respo = resp.json()
+                respo = resp.json()  # type: ignore[attr-defined]
                 response = respo["sold"]["data"]
             except KeyError:
                 print(
