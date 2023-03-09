@@ -6,13 +6,16 @@ import time
 url = "https://api.wax.alohaeos.com:443"
 endpoint = "/v2/history/get_actions"
 
-starting_timestamp = "2023-02-13T00:00:00.000"
+starting_timestamp = "2023-01-31T00:00:00.000"
 
 
 def get_one(account="dao.worlds", actname="votecust", after=None, limit=1000) -> str:
-    composed = f"{url}{endpoint}?account={account}&act.name={actname}&limit={limit}"
+    composed = (
+        f"{url}{endpoint}?account={account}&act.name={actname}&limit={limit}&sort=1"
+    )
     if after is not None:
         composed += f"&after={after}"
+    print(f"fetching [[{composed}]]")
     res = requests.get(composed)
     res.raise_for_status()
     result = json.loads(res.content)
@@ -21,16 +24,21 @@ def get_one(account="dao.worlds", actname="votecust", after=None, limit=1000) ->
 
 
 def get_all(_starting_timestamp) -> str:
+    last_timestamp = _starting_timestamp
     results = []
     last_actions = []
+    new_actions = []
     while True:
         try:
-            response = get_one(after=_starting_timestamp)
-            new_actions = [action["act"] for action in response["actions"]]
+            response = get_one(after=last_timestamp)
             last_actions = new_actions
+            new_actions = [action["act"] for action in response["actions"]]
             results.extend(new_actions)
             last_timestamp = response["actions"][-1]["timestamp"]
         except (IndexError, requests.exceptions.HTTPError):
+            print(
+                "IndexError or requests.exceptions.HTTPError occurred while fetching all actions."
+            )
             return results
         print(
             f"got {len(response['actions'])=} results, {len(results)=} sleeping for 3s..."
@@ -43,7 +51,6 @@ def get_all(_starting_timestamp) -> str:
             )  # 62, 28
             return results
         time.sleep(3)
-        response = get_one(after=last_timestamp)
     return results
 
 
@@ -72,14 +79,14 @@ __relevants = {}
 def sort_relevants(relevants=None):
     if relevants is None:
         relevants = __relevants
-    valid_addresses = []
-    voted_both = []
+    valid_addresses = set()
+    voted_both = set()
     for key, value in relevants.items():
         if "a52qw.wam" in value and "b52qw.wam" in value:
-            voted_both.append(key)
+            voted_both.add(key)
         elif "a52qw.wam" in value or "b52qw.wam" in value:
-            valid_addresses.append(key)
-    return voted_both, valid_addresses
+            valid_addresses.add(key)
+    return list(voted_both), list(valid_addresses)
 
 
 if __name__ == "__main__":
