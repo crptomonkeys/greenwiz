@@ -13,6 +13,7 @@ from utils.exceptions import InvalidInput
 from utils.meta_cog import MetaCog
 from utils.settings import CM_GUID
 from utils.util import scope
+from utils.cryptomonkey_utils import has_nifty
 
 
 async def confirmation_on(user, confirmed_ids):
@@ -93,7 +94,7 @@ class Moderation(MetaCog):
         ):
             flag = "posting scam website links"
 
-        if not flag and len(message.mentions) > 20:
+        if not flag and len(message.mentions) > 20 and not has_nifty(message.author):
             flag = "mass pinging people"
 
         if not flag:
@@ -227,7 +228,8 @@ class Moderation(MetaCog):
     async def clearpins(self, ctx):
         """Clear all the pinned messages from a channel.
         Requires: Manage Messages permission
-        Note: It is highly recommended to be absolutely sure before using this command."""
+        Note: It is highly recommended to be absolutely sure before using this command.
+        """
         if self.confirmed_ids.get(ctx.author.id, 0) > 0:
             i = 0
             for pin in await ctx.channel.pins():
