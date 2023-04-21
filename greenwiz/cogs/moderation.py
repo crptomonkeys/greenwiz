@@ -13,7 +13,7 @@ from utils.exceptions import InvalidInput
 from utils.meta_cog import MetaCog
 from utils.settings import CM_GUID
 from utils.util import scope
-from utils.cryptomonkey_utils import has_nifty
+from utils.cryptomonkey_util import has_nifty
 
 
 async def confirmation_on(user, confirmed_ids):
