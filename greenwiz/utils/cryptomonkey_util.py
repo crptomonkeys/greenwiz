@@ -7,6 +7,8 @@ def has_nifty(member: discord.Member, bot):
     """Niftys can drop some cards every day."""
     if member.guild.id != CM_GUID:
         _member = bot.get_guild(CM_GUID).get_member(member.id)
+    else:
+        _member = member
     if _member is None:
         return False
     if _member.id in [
