@@ -181,7 +181,7 @@ full_api_weighted_list = [
 wax_dict: dict[str, dict[int, dict[str, str]]] = {}
 cache_ages: dict[str, dict[int, float]] = {}
 cache_cards, card_cache_age = {}, 0
-template_id_price_cache: dict[int, tuple[int, float]] = {}
+template_id_price_cache: dict[int, tuple[float, float]] = {}
 template_id_price_cache_ages: dict[int, float] = {}
 
 
@@ -245,7 +245,7 @@ class NoCardsException(UnableToCompleteRequestedAction):
 class EosJsonRpcWrapper(EosJsonRpc):
     """Wrapper class for EosJsonRpc to reuse an aiohttp session which is good practice."""
 
-    def __init__(self, url: str, ses: aiohttp.ClientSession = None) -> None:
+    def __init__(self, url: str, ses: Optional[aiohttp.ClientSession] = None) -> None:
         self.ses = ses
         super().__init__(url)
 
@@ -955,7 +955,7 @@ async def send_link_start_to_finish(
     bot_,
     message: discord.Message,
     member: discord.Member,
-    sender: Union[discord.User, discord.Member],
+    sender: discord.User,
     reason: str,
     num: int = 1,
 ) -> int:
@@ -981,7 +981,8 @@ async def send_link_start_to_finish(
 
     # If in introduction channel, only send to people without 'introduced' role, and assign this role upon
     # completion.
-    intro, introduced = False, None
+    intro = False
+    introduced: discord.Role | None = None
     if (
         cinfo.intro_role and cinfo.intro_ch and isinstance(message.guild, discord.Guild)
     ):  # Only consider an intro role if one is configured for this collection
@@ -993,7 +994,7 @@ async def send_link_start_to_finish(
                     "channel if you want to send another one."
                 )
             intro = True
-
+    assert introduced is not None
     # Don't let non-collection admins use the command in parallel due to possible reentrancy exploit.
     if not hasattr(bot_, "drop_send_reentrancy"):
         bot_.drop_send_reentrancy = {}
@@ -1171,7 +1172,7 @@ async def get_card_dict(
         for card_id in wax_dict[collection]:
             _tasks.append(
                 asyncio.create_task(
-                    get_fair_price_for_card(card_id, session, detail=True)
+                    get_fair_price_for_card(card_id, session, detail=True)  # type: ignore[arg-type]
                 )
             )
         new_responses = await asyncio.gather(*_tasks)

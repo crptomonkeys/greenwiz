@@ -1,5 +1,6 @@
 import discord
 from discord.ext import commands
+from typing import Any
 
 from utils.meta_cog import MetaCog
 from utils.settings import BASIC_PERMS, SIGNIFICANT_PERMS
@@ -26,7 +27,7 @@ class Members(MetaCog):
     @commands.check(scope())
     @commands.guild_only()
     async def check_permissions(
-        self, ctx: commands.Context, member: discord.Member = None, detail=1
+        self, ctx: commands.Context[Any], member: discord.Member | discord.User | None = None, detail=1
     ):
         """Check the permissions of a user on the current server
         Member: The person who's perms to check
@@ -38,9 +39,13 @@ class Members(MetaCog):
             raise AssertionError("member should be a discord.Member object.")
         # embed it
         embed = discord.Embed(title="", description="", color=member.color)
+        if ctx.guild is None:
+            _guild_name = ""
+        else:
+            _guild_name = ctx.guild.name
         embed.set_author(
             icon_url=member.display_avatar.url,
-            name=f"{str(member)}'s perms on {ctx.guild.name}",
+            name=f"{str(member)}'s perms on {_guild_name}",
         )
         if detail > 0:  # include basic perms
             iperms = "\n".join(

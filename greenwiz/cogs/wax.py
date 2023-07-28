@@ -4,7 +4,7 @@ import random
 import time
 import traceback
 from collections import deque
-from typing import Optional, Union
+from typing import Optional, Union, Any
 
 import discord
 from aioeos import EosAccount
@@ -79,7 +79,7 @@ class Wax(MetaCog):
     )
     @commands.check(monkeyprinter())
     @commands.check(scope())
-    async def send_wax(self, ctx: commands.Context, amount: int, destination: str):
+    async def send_wax(self, ctx: commands.Context[Any], amount: int, destination: str):
         result = await self.bot.wax_con.transfer_funds(
             destination, amount, sender=ctx.author.name
         )
@@ -93,7 +93,7 @@ class Wax(MetaCog):
     )
     @commands.check(monkeyprinter())
     @commands.check(scope())
-    async def send_nft(self, ctx: commands.Context, destination: str, *, asset_id: int):
+    async def send_nft(self, ctx: commands.Context[Any], destination: str, *, asset_id: int):
         asset_ids = [asset_id]
         result = await self.bot.wax_con.transfer_assets(
             destination, asset_ids, sender=ctx.author.name
@@ -160,14 +160,14 @@ class Wax(MetaCog):
     )
     @commands.check(monkeyprinter())
     @commands.check(scope())
-    async def claimlink_id(self, ctx: commands.Context, asset_id: int):
+    async def claimlink_id(self, ctx: commands.Context[Any], asset_id: int):
         success, result = await self.bot.wax_con.create_claimlink([asset_id])
         await ctx.send(result)
 
     @commands.command(description="Cancel the specified claimlink.")
     @commands.check(monkeyprinter())
     @commands.check(scope())
-    async def cancel_link(self, ctx: commands.Context, link_id: int):
+    async def cancel_link(self, ctx: commands.Context[Any], link_id: int):
         result, tx_id = await self.bot.wax_con.cancel_claimlink(link_id)
         await ctx.send(f"Deleted claimlink {link_id}. Transaction id: {tx_id}.")
 
@@ -176,7 +176,7 @@ class Wax(MetaCog):
     @commands.check(scope())
     async def cancel_old_links(
         self,
-        ctx: commands.Context,
+        ctx: commands.Context[Any],
         collection: str = DEFAULT_WAX_COLLECTION,
         days_old: int = 91,
     ):
@@ -204,7 +204,7 @@ class Wax(MetaCog):
     @commands.check(monkeyprinter())
     @commands.check(scope())
     async def claimlink(
-        self, ctx: commands.Context, member: discord.Member, card: int = 0, *, memo=None
+        self, ctx: commands.Context[Any], member: discord.Member, card: int = 0, *, memo=None
     ):
         if card != 0 and card < 1000:
             # convert card # to template id
@@ -272,7 +272,7 @@ class Wax(MetaCog):
     @commands.command(description="Generate several claimlinks")
     @commands.check(monkeyprinter())
     async def claimlinks(
-        self, ctx: commands.Context, amount: int = 1, card: int = 0, *, memo=None
+        self, ctx: commands.Context[Any], amount: int = 1, card: int = 0, *, memo=None
     ):
         if card != 0 and card < 1000:
             # convert card # to template id
@@ -363,7 +363,7 @@ class Wax(MetaCog):
         )
 
     @drop.error
-    async def drop_error(self, ctx: commands.Context, error):
+    async def drop_error(self, ctx: commands.Context[Any], error):
         lines = traceback.format_exception(type(error), error, error.__traceback__)
         traceback_text = "```py\n" + "".join(lines) + "\n```"
         if hasattr(error, "args") and len(error.args) > 0:
@@ -396,7 +396,7 @@ class Wax(MetaCog):
         self,
         ctx,
         number: Optional[int] = 10,
-        channel: TextChannel = None,
+        channel: TextChannel | None = None,
         *,
         reason: str = "",
     ):
@@ -490,7 +490,7 @@ class Wax(MetaCog):
         )
 
     @chatloot.error
-    async def chatloot_error(self, ctx: commands.Context, error):
+    async def chatloot_error(self, ctx: commands.Context[Any], error):
         if hasattr(error, "args"):
             self.log(
                 f"{ctx.author} triggered {type(error)}::{error} in command {ctx.command}: {error.args[0]} "
@@ -552,7 +552,7 @@ class Wax(MetaCog):
 
     @commands.command(description="Fetch the top monkeysmatch completers")
     @commands.check(monkeyprinter())
-    async def monkeysmatch(self, ctx: commands.Context, completions: Optional[int] = 1):
+    async def monkeysmatch(self, ctx: commands.Context[Any], completions: Optional[int] = 1):
         """Fetches all wax addresses who have completed at least n games of monkeysmatch. Default 1."""
         res = await self.bot.wax_con.monkeysmatch_top(completions)
 
@@ -569,7 +569,7 @@ class Wax(MetaCog):
         description="Adjust the daily drop limit for niftys until the next bot restart"
     )
     @commands.check(monkeyprinter())
-    async def adjustlimit(self, ctx: commands.Context, limit: int = 20):
+    async def adjustlimit(self, ctx: commands.Context[Any], limit: int = 20):
         """Temporarily adjust the daily drop limit. Value must be an integer between 0 and 1000."""
         if not (0 <= limit <= 1000):
             raise UnableToCompleteRequestedAction(

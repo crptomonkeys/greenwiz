@@ -10,7 +10,7 @@ from utils.exceptions import InvalidInput, UnableToCompleteRequestedAction
 
 
 class StorageManager:
-    def __init__(self, bot, guild: discord.Guild = None) -> None:
+    def __init__(self, bot, guild: discord.Guild | None = None) -> None:
         self.bot = bot
         self.redis = bot.redis
         if guild:

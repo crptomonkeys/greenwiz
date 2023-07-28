@@ -1,4 +1,4 @@
-from typing import Set, Any, Optional, Union
+from typing import Set, Any, Optional, Union, Protocol
 
 import aiohttp.web_exceptions
 
@@ -18,6 +18,10 @@ class GreenApiException(Exception):
         return self.args[0]
 
     pass
+
+
+class ReprProtocol(Protocol):
+    def __repr__(self) -> str: ...
 
 
 class GreenApi:
@@ -133,7 +137,7 @@ class GreenApi:
                     self.cached_blacklist = set(
                         [i["wallet"].replace(" ", "") for i in results]
                     )
-                self.cache_updated = utcnow().timestamp()
+                self.cache_updated = int(utcnow().timestamp())
             except aiohttp.web_exceptions.HTTPError as e:
                 print(
                     f"Encountered an error attempting to fetch the monKeyconnect blacklist, returning cached "
@@ -194,7 +198,7 @@ class GreenApi:
         offset: int = 0
         res = set()
 
-        def err(msg: str) -> set[str]:
+        def err(msg: ReprProtocol) -> set[str]:
             print(
                 f"Encountered an error attempting to fetch the AW blacklist, returning cached "
                 f"blacklist. Result: {msg}"
@@ -217,7 +221,7 @@ class GreenApi:
             if not results:
                 return err("")
             if len(results) < limit:
-                self.cache_updated = utcnow().timestamp()
+                self.cache_updated = int(utcnow().timestamp())
                 self.cached_awblacklist = res
                 return self.cached_awblacklist
             offset += limit

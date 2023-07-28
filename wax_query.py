@@ -6,7 +6,7 @@ import time
 url = "https://api.wax.alohaeos.com:443"
 endpoint = "/v2/history/get_actions"
 
-starting_timestamp = "2023-01-31T00:00:00.000"
+starting_timestamp = "2023-04-19T00:00:00.000"  # 05 11
 
 
 def get_one(account="dao.worlds", actname="votecust", after=None, limit=1000) -> str:
