@@ -45,7 +45,7 @@ def user_is_authd_to_drop_yoshis(user: discord.User, bot):
     return False
 
 
-collections = {
+collections: dict[str, dict[str, Any]] = {
     "crptomonkeys": {
         "collection": "crptomonkeys",
         "name": "cryptomonKeys",
@@ -133,7 +133,7 @@ def get_collection_info(
     """Fetch configuration data for a given wax_chain collection"""
     if isinstance(collection, CollectionData):
         collection = collection.collection
-    res = collections.get(collection, None)
+    res: dict[str, Any] | None = collections.get(collection, None)
     if res is None:
         raise UnableToCompleteRequestedAction
     result = CollectionData(**res)

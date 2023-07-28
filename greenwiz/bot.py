@@ -9,10 +9,10 @@ import pathlib
 import traceback
 import sys
 from collections import Counter, defaultdict
-from typing import Union, Callable, Any
+from typing import Union, Any, Awaitable
 
 import aiohttp
-import aioredis
+from redis import asyncio as aioredis
 import discord
 from discord.ext import commands
 
@@ -35,7 +35,7 @@ class Bot(commands.Bot):
         )
         self._tasks: list[asyncio.Task[None]] = []
         self.logging_status: list[str] = []
-        self.storage: dict[Union[int, None], StorageManager] = {}
+        self.storage: dict[Union[int, None, discord.Guild], StorageManager] = {}
         self.stats: dict[str, Union[int, Counter[str]]] = {
             "commands_counter": Counter(),
             "users_counter": Counter(),
@@ -52,7 +52,7 @@ class Bot(commands.Bot):
             members=True, message_content=True
         )
         super().__init__(
-            command_prefix=self.get_prefix,
+            command_prefix=self.get_prefix,  # type: ignore[arg-type]
             case_insensitive=False,
             intents=intents,
             allowed_mentions=discord.AllowedMentions(everyone=False, roles=False),
@@ -84,7 +84,7 @@ class Bot(commands.Bot):
         self.session: aiohttp.ClientSession = aiohttp.ClientSession()
 
         try:
-            self.redis: aioredis.Redis = aioredis.from_url(
+            self.redis = aioredis.from_url(
                 f"redis://{self.settings.REDIS_IP}",
                 password=self.settings.REDIS_AUTH,
                 db=self.settings.DB_NUM,
@@ -103,7 +103,7 @@ class Bot(commands.Bot):
         #  directly.
         self.storage[None] = StorageManager(self)
 
-        self.logging_status = await self.redis.hgetall("settings:logging_status")
+        self.logging_status = list((await self.redis.hgetall("settings:logging_status")).keys())
         if self.logging_status is None or len(self.logging_status) == 0:
             self.logging_status = self.settings.DONT_LOG
 
@@ -136,9 +136,14 @@ class Bot(commands.Bot):
         )
         self.initialized = True
         startup = util.utcnow() - self.start_time
-
+        if self.user is not None:
+            name = self.user.name
+            _id = self.user.id
+        else:
+            name = "Unknown bot"
+            _id = 0
         self.log(
-            f"Logged in as {self.user.name} ({self.user.id}) with {len(self.cogs_ready)}"
+            f"Logged in as {name} ({_id}) with {len(self.cogs_ready)}"
             f"/{self.original_extensions} cogs loaded"
             f" and ready to rumble after {startup.total_seconds():.3f} seconds.",
             severity="STRT",
@@ -182,26 +187,24 @@ class Bot(commands.Bot):
         await super().close()
         os.execv(sys.executable, ["python"] + sys.argv)
 
-    async def add_cog(self, cog: commands.Cog) -> None:
+    async def add_cog(self, cog: commands.Cog) -> None:  # type: ignore[override]
         """Adds a cog and logs it."""
         await super().add_cog(cog)
         self.log(f"Loaded cog {cog.qualified_name}.")
 
-    async def get_prefix(
+    async def get_prefix(  # type: ignore[override]
         self, message: discord.Message
-    ) -> Union[Callable[[commands.Bot, discord.Message], list[str]], str]:
+    ) -> Union[str, Awaitable[str]]:
         """Returns the prefix for a given message context."""
         if message.guild is None:
-            return commands.when_mentioned_or("")(self, message)  # type: ignore[no-any-return]
+            return commands.when_mentioned_or("")(self, message)  # type: ignore[return-value, no-any-return]
         if self.settings.ENV != "prod":
             return f"{self.settings.ENV}{self.settings.TEST_PREFIX_OVERRIDE}"
         try:
             guild_prefix = await self.storage[message.guild].get_setting("prefix")
         except KeyError:
             guild_prefix = self.settings.DEFAULT_PREFIX
-        if guild_prefix is None:
-            guild_prefix = self.settings.DEFAULT_PREFIX
-        return commands.when_mentioned_or(guild_prefix)(self, message)  # type: ignore[no-any-return]
+        return commands.when_mentioned_or(guild_prefix)(self, message)  # type: ignore[return-value, no-any-return]
 
     async def set_prefix(self, guild: discord.Guild, prefix: str) -> None:
         """Set the prefix for a given guild"""
@@ -220,14 +223,15 @@ class Bot(commands.Bot):
             return
         try:
             channel = self.get_channel(877782340741505044)
-            if channel:
-                task = channel.send(f"[{severity}] {message}"[:1995])
+            if channel and not (isinstance(channel, discord.ForumChannel)
+                                or isinstance(channel, discord.CategoryChannel)):
+                task = channel.send(f"[{severity}] {message}"[:1995])  # type: ignore[union-attr]
                 asyncio.create_task(task)
         except (discord.HTTPException, discord.Forbidden, ValueError, TypeError):
             pass
 
     async def quiet_send(
-        self, ctx: commands.Context, message, delete_after=None
+        self, ctx: commands.Context[Any], message, delete_after=None
     ) -> None:
         """Send a message. Should sending fail, log the error at the debug level but otherwise fail
         silently."""
@@ -249,7 +253,7 @@ class Bot(commands.Bot):
                 debug,
             )
 
-    async def quiet_x(self, ctx: commands.Context, reaction="❌") -> None:
+    async def quiet_x(self, ctx: commands.Context[Any], reaction="❌") -> None:
         """React to a message with an :x: reaction. Should reaction, fail, log the error at the
         debug level but otherwise fail silently."""
         debug = "DBUG"
@@ -277,7 +281,7 @@ class Bot(commands.Bot):
             )
 
     async def quiet_fail(
-        self, ctx: commands.Context, message: str, delete: bool = True
+        self, ctx: commands.Context[Any], message: str, delete: bool = True
     ) -> None:
         """React with an x and send the user an explanatory failure message. Should anything fail,
         log at the debug level but otherwise fail silently. Delete own response after 30 seconds."""
@@ -289,7 +293,7 @@ class Bot(commands.Bot):
             await self.quiet_send(ctx, resp, delete_after=None)
         return
 
-    async def on_command_error(self, ctx: commands.Context, error) -> None:
+    async def on_command_error(self, ctx: commands.Context[Any], error) -> None:
         """
         General bot error handler. The main thing here is if something goes very wrong, dm the bot
         owner the full error directly.
@@ -300,7 +304,7 @@ class Bot(commands.Bot):
 
     def uptime(self) -> datetime.timedelta:
         """Returns the time since bot startup."""
-        return datetime.timedelta(util.utcnow() - self.start_time)
+        return datetime.timedelta(util.utcnow() - self.start_time)  # type: ignore[arg-type]
 
     def startuptime(self):
         """Returns the time the bot started up."""

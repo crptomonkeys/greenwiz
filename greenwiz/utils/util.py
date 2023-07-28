@@ -229,6 +229,7 @@ async def parse_user(
     nickname
     Returns a member over a user where possible."""
     user = user.replace("<", "").replace(">", "").replace("@", "")
+    user_obj: discord.Member | discord.User
     try:
         uid = int(user)
         user_obj = ctx.guild.get_member(uid) or ctx.bot.get_user(uid)
@@ -237,7 +238,8 @@ async def parse_user(
     except ValueError:
         pass
     try:
-        return ctx.guild.get_member_named(user) or ctx.guild.get_member_named(user[1:])
+        user_obj = ctx.guild.get_member_named(user) or ctx.guild.get_member_named(user[1:])
+        return user_obj
     except (ValueError, TypeError):
         return None
 

@@ -1,3 +1,4 @@
+# mypy: disable-error-code="assignment"
 # ==================== Discord Settings =============================
 import os
 

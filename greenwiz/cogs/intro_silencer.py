@@ -15,11 +15,13 @@ class IntroSilencer(MetaCog):
         if message.channel.id != 758054443479597077:
             return
 
-        role: discord.Role = message.guild.get_role(816406154778378322)
+        role: discord.Role | None = message.guild.get_role(816406154778378322)
         if not isinstance(message.author, discord.Member):
             raise AssertionError(
                 "Guild messages' author attribute should always be a Member."
             )
+        if role is None:
+            return
         while role not in message.author.roles:
             # To ensure role gets added even if it was missed initially.
             try:

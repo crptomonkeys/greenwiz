@@ -6,21 +6,23 @@ from utils.settings import CM_GUID, BANANO_GUID, CRYPTOMONKEY_DROP_ADMINS
 def has_nifty(member: discord.Member, bot):
     """Niftys can drop some cards every day."""
     if member.guild.id != CM_GUID:
-        member = bot.get_guild(CM_GUID).get_member(member.id)
-    if member is None:
+        _member = bot.get_guild(CM_GUID).get_member(member.id)
+    else:
+        _member = member
+    if _member is None:
         return False
-    if member.id in [
+    if _member.id in [
         224974384710811649,  # triggerhaven
         417522436792254475,  # anemone
     ]:
         return True
-    for role in member.roles:
+    for role in _member.roles:
         if role.id in [733313560247140422, 800575369090039838, 733313838375632979]:
             return True
 
     # Also let banano Jungle Juntas drop like niftys
-    member = bot.get_guild(BANANO_GUID).get_member(member.id)
-    for role in member.roles:
+    _member = bot.get_guild(BANANO_GUID).get_member(_member.id)
+    for role in _member.roles:
         if role.id in [416789711034777600]:
             return True
     return False
