@@ -471,7 +471,7 @@ class Wax(MetaCog):
             )
             if counter >= number and resp.author.id not in set(self.recent_drops):
                 break
-        assert resp is not None
+        assert resp is not None, "The winning message was deleted before a loot could be sent."
         # Prevents the same person from receiving two drops in a row
         self.recent_drops.appendleft(resp.author.id)
         log("attempting to send a loot", "DBUG")
