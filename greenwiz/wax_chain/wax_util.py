@@ -994,7 +994,7 @@ async def send_link_start_to_finish(
                     "channel if you want to send another one."
                 )
             intro = True
-        assert introduced is not None, "Introduced role is not configured."
+            assert introduced is not None, "Introduced role is not configured."
     # Don't let non-collection admins use the command in parallel due to possible reentrancy exploit.
     if not hasattr(bot_, "drop_send_reentrancy"):
         bot_.drop_send_reentrancy = {}
