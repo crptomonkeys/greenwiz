@@ -1,4 +1,4 @@
-from typing import Optional, Union
+from typing import Optional, Union, Any
 
 import discord
 from discord.ext import commands
@@ -102,7 +102,7 @@ class Test(MetaCog):
     @commands.check(nifty())
     @commands.check(scope())
     async def find_words(
-        self, ctx: commands.Context(), min_length: int = 4, *, text: str
+        self, ctx: commands.Context[Any], min_length: int = 4, *, text: str
     ):
 
         test_strings = text.split()
