@@ -328,7 +328,7 @@ class Wax(MetaCog):
         if not 1 <= num <= 10:
             raise InvalidInput("Num must be between 1 and 10.")
 
-        if type(member) == discord.Member:
+        if isinstance(member, discord.Member):
             log(
                 f"Sending {num} random cryptomonKeys to discord user {member} as a DMed claimlink for reason {reason}",
                 "DBUG",

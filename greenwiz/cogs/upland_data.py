@@ -39,7 +39,7 @@ async def visitors(
     response = await session.get(UPLAND_QUERY_URL + str(property_id))
     json_res = await response.json()
     print(json_res)
-    if not type(json_res) == list and json_res.get("code", 200) >= 400:
+    if not isinstance(json_res, list) and json_res.get("code", 200) >= 400:
         raise UnableToCompleteRequestedAction(
             f"I received an invalid response from the upland api: {json_res}"
         )
