@@ -221,7 +221,7 @@ def format_wax_amount(amount):
 def get_resp_code(response):
     """Wax nodes don't always follow HTTP standards let alone RESTful best practices."""
     code = response.get("code", 0)
-    if code == 0 or not type(code) == int:
+    if code == 0 or not isinstance(code, int):
         code = response.get("statusCode", 0)
     try:
         code = int(code)
@@ -994,7 +994,7 @@ async def send_link_start_to_finish(
                     "channel if you want to send another one."
                 )
             intro = True
-    assert introduced is not None
+            assert introduced is not None, "Introduced role is not configured."
     # Don't let non-collection admins use the command in parallel due to possible reentrancy exploit.
     if not hasattr(bot_, "drop_send_reentrancy"):
         bot_.drop_send_reentrancy = {}
@@ -1058,6 +1058,9 @@ async def send_link_start_to_finish(
     if not isinstance(member, discord.abc.Snowflake):
         raise AssertionError("Guild member' should always be a Member.")
     while intro:
+        if not isinstance(introduced, discord.abc.Snowflake):
+            raise AssertionError("When post is classed as an intro and introduced role is defined,"
+                                 " introduced role should be addable.")
         # To ensure it gets added if discord messes up initially
         await member.add_roles(introduced)
         if introduced in member.roles:

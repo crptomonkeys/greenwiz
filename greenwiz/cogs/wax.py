@@ -328,7 +328,7 @@ class Wax(MetaCog):
         if not 1 <= num <= 10:
             raise InvalidInput("Num must be between 1 and 10.")
 
-        if type(member) == discord.Member:
+        if isinstance(member, discord.Member):
             log(
                 f"Sending {num} random cryptomonKeys to discord user {member} as a DMed claimlink for reason {reason}",
                 "DBUG",
@@ -471,7 +471,7 @@ class Wax(MetaCog):
             )
             if counter >= number and resp.author.id not in set(self.recent_drops):
                 break
-        assert resp is not None
+        assert resp is not None, "The winning message was deleted before a loot could be sent."
         # Prevents the same person from receiving two drops in a row
         self.recent_drops.appendleft(resp.author.id)
         log("attempting to send a loot", "DBUG")

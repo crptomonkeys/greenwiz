@@ -1,4 +1,4 @@
-from typing import Optional, Union
+from typing import Optional, Union, Any
 
 import discord
 from discord.ext import commands
@@ -60,7 +60,7 @@ class Test(MetaCog):
         if not 1 <= num <= 10:
             raise InvalidInput("Num must be between 1 and 10.")
 
-        if type(member) == discord.Member:
+        if isinstance(member, discord.Member):
             return await ctx.send(
                 f"Interpreted test command as: Send {num} random cryptomonKeys to discord user"
                 f" {member} asa DMed claimlink for reason {reason}."
@@ -102,7 +102,7 @@ class Test(MetaCog):
     @commands.check(nifty())
     @commands.check(scope())
     async def find_words(
-        self, ctx: commands.Context, min_length: int = 4, *, text: str
+        self, ctx: commands.Context[Any], min_length: int = 4, *, text: str
     ):
 
         test_strings = text.split()

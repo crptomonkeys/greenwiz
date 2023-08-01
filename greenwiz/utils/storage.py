@@ -58,7 +58,7 @@ class StorageManager:
         results = dict()
         for key in keys:
             id_ = str(key).split(":")[-1][:-1]
-            if await self.redis.type(key) == b"string":
+            if await self.redis.type(key) == b"string":  # noqa: E721
                 value = await self.redis.get(key)
             else:
                 value = await self.redis.hgetall(key)
