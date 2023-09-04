@@ -1,3 +1,4 @@
+import re
 import asyncio
 from datetime import datetime
 from difflib import get_close_matches
@@ -79,6 +80,18 @@ class Moderation(MetaCog):
                     flag = "posting scam website links"
                     break
 
+        # Scan for embeded links which can mislead users as to where they lead
+        if "](" in content and "[" in content and ")" in content:
+            pattern = r'\[(.*?)\]\((.*?)\)'
+            matches = re.findall(pattern, content)
+            for label, link in matches:
+                label_is_link = re.search(r'^(https?://|www\.)\S+', label)
+                if not label_is_link:
+                    continue
+                if label != link:
+                    flag = "posting misleading links"
+                    break
+
         if (
             not flag
             and "atomichub." in content
@@ -105,7 +118,7 @@ class Moderation(MetaCog):
         )
         channel = message.guild.get_channel(770556844351422464) or message.channel
 
-        if flag == "posting scam claim links":
+        if flag in ["posting scam claim links", "posting misleading links"]:
             contents = content[:1940].replace("`", "")
             await channel.send(
                 f"<@&733313838375632979>, I think I detected {message.author} "
