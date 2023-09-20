@@ -100,6 +100,13 @@ cards = [
     "lights on",
     "lights off",
     "the grin reaper",
+    "the custodian",
+    "banta's workshop",
+    "les incompetents",
+    "monkey generator",
+    "folding at homequarters",
+    "5th banniversary",
+    "monkey memeland",
 ]
 
 ops = {"+": operator.add, "-": operator.sub, "*": operator.mul, "/": operator.truediv}
