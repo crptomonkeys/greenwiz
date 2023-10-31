@@ -23,7 +23,7 @@ from wax_chain.wax_util import announce_and_send_link
 
 drop_banano_endpoint = "/accounts/api/v1/drop_ban_discord/"
 connect_url = "https://connect.cryptomonkeys.cc"
-success_emoji = "🎅"
+success_emoji = "<:candy_emoji:761873733366448148>"
 cache_time = 600  # seconds before querying api again to refresh user dict
 
 cached_active_users: dict[Any, Any] = {}
