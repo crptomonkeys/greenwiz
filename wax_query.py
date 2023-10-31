@@ -6,7 +6,7 @@ import time
 url = "https://api.wax.alohaeos.com:443"
 endpoint = "/v2/history/get_actions"
 
-starting_timestamp = "2023-04-19T00:00:00.000"  # 05 11
+starting_timestamp = "2023-05-11T00:00:00.000"  # 09 07
 
 
 def get_one(account="dao.worlds", actname="votecust", after=None, limit=1000) -> str:
@@ -20,7 +20,7 @@ def get_one(account="dao.worlds", actname="votecust", after=None, limit=1000) ->
     res.raise_for_status()
     result = json.loads(res.content)
     # print(result)
-    return result
+    return str(result)
 
 
 def get_all(_starting_timestamp) -> str:
