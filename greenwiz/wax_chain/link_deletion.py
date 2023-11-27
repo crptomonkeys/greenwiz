@@ -27,7 +27,7 @@ async def find_old_links_to_delete(
     State 3: claimed"""
     now: datetime = datetime.now()
     earliest_still_valid = now - timedelta(days=days_old)
-    endpoint: str = "https://wax.api.atomicassets.io/atomictools/v1/links"
+    endpoint: str = "https://wax.eosusa.io/atomictools/v1/links"
     page: int = 1
     drop_ac = get_collection_info(collection).drop_ac
     params: str = (

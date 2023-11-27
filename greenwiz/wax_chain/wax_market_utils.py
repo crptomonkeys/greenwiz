@@ -4,7 +4,7 @@ import aiohttp
 
 from utils.util import log
 
-base_atomic_api = "https://wax.api.atomicassets.io/"
+base_atomic_api = "https://wax.eosusa.io/"
 wax_chain_api = "https://api.waxsweden.org"
 atomic_api = base_atomic_api + "atomicassets/v1/"
 market_api = base_atomic_api + "atomicmarket/v1/"
