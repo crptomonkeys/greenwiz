@@ -9,9 +9,8 @@ from utils.meta_cog import MetaCog
 from utils.util import utcnow, log
 from utils.settings import ADVENT_OF_CODE_COOKIE
 
-LEADERBOARD = "https://adventofcode.com/2022/leaderboard/private/view/193648.json"
-PUBLIC_LEADERBOARD = "https://adventofcode.com/2022/leaderboard/private/view/193648"
-
+LEADERBOARD = "https://adventofcode.com/2023/leaderboard/private/view/2536513.json"
+PUBLIC_LEADERBOARD = "https://adventofcode.com/2023/leaderboard/private/view/2536513"
 
 async def get_lb(session: aiohttp.ClientSession) -> dict[str, Any]:
     """Fetches the AoC leaderboard and parses it."""
