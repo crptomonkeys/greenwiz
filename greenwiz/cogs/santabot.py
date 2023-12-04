@@ -139,12 +139,12 @@ async def send_daily_reward(ctx, bot, base_luck_for_user: float = 1.0):
         msg = await attempt_to_send_daily_reward_ban_or_send_cm_instead(
             bot.session, author, bot, 500.0
         )
-    elif luck > 0.6:
-        amount = random.randint(19, 42)
+    elif luck > 0.25:
+        amount = random.randint(8, 42)
         msg = await attempt_to_send_daily_reward_ban_or_send_cm_instead(
             bot.session, author, bot, float(amount)
         )
-    elif luck > 0.3:
+    elif luck > 0.1:
         await send_daily_reward_cryptomonkey(bot, author)
         msg = "You got a cryptomonKeys NFT from Santa, cool!"
     else:
