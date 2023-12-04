@@ -232,12 +232,12 @@ class SantaBot(MetaCog):
         Users must have achieved Citizen role on the banano server or be active on
          the cryptomonKey server in order to use this command.
         This command must be used in one of the designated bot spam channels."""
-        await ctx.reply(
-            "Santa's gift is over for the year. I hope to see you next year! "
-            "Remember to check out the rest of the cryptomonKeys and banano discord "
-            "servers for many other ways to earn freebies."
-        )
-        return
+        # await ctx.reply(
+        #     "Santa's gift is over for the year. I hope to see you next year! "
+        #     "Remember to check out the rest of the cryptomonKeys and banano discord "
+        #     "servers for many other ways to earn freebies."
+        # )
+        # return
         log(f"Entering santa gift for {ctx.author}", "DBUG")  # type: ignore[unreachable]
         # Verification checks
         await ctx.message.add_reaction("⌛")
