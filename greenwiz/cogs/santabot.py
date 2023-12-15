@@ -137,12 +137,12 @@ async def send_daily_reward(ctx, bot, base_luck_for_user: float = 1.0):
         record_user_opened_today_gift(author.id, "None")
     if luck > 0.99:
         msg = await attempt_to_send_daily_reward_ban_or_send_cm_instead(
-            # bot.session, author, bot, 500.0
-            bot.session, author, bot, 200.0
+            bot.session, author, bot, 500.0
+            #bot.session, author, bot, 200.0
         )
     elif luck > 0.2:
-        # amount = random.randint(8, 42)
-        amount = random.randint(2, 19)
+        amount = random.randint(8, 42)
+        #amount = random.randint(2, 19)
         msg = await attempt_to_send_daily_reward_ban_or_send_cm_instead(
             bot.session, author, bot, float(amount)
         )
