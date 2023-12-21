@@ -48,6 +48,7 @@ async def send_ban_to_user(
     json_resp: dict[str, Any] = {}
     try:
         json_resp = await response.json()
+        log(json_resp, "INFO")
     except aiohttp.ClientConnectionError:
         log("Unable to connect to api to fetch usernames.", "WARN")
     except aiohttp.ContentTypeError:
