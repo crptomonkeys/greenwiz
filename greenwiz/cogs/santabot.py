@@ -127,6 +127,9 @@ async def attempt_to_send_daily_reward_ban_or_send_cm_instead(
 
 
 async def send_daily_reward(ctx, bot, base_luck_for_user: float = 1.0):
+    return await ctx.send(
+        "Santa is finished for the year. Hope you enjoyed. Happy new year!"
+    )
     author = ctx.author
     luck = random.random()
     reroll = random.random()
@@ -138,17 +141,20 @@ async def send_daily_reward(ctx, bot, base_luck_for_user: float = 1.0):
         record_user_opened_today_gift(author.id, "None")
     if luck > 0.99:
         msg = await attempt_to_send_daily_reward_ban_or_send_cm_instead(
-            bot.session, author, bot, 500.0
-            #bot.session, author, bot, 200.0
+            bot.session,
+            author,
+            bot,
+            500.0
+            # bot.session, author, bot, 200.0
         )
     elif luck > 0.2:
         amount = random.randint(8, 42)
-        #amount = random.randint(2, 19)
+        # amount = random.randint(2, 19)
         msg = await attempt_to_send_daily_reward_ban_or_send_cm_instead(
             bot.session, author, bot, float(amount)
         )
     else:
-    # elif luck > 0.1:
+        # elif luck > 0.1:
         await send_daily_reward_cryptomonkey(bot, author)
         msg = "You got a cryptomonKeys NFT from Santa, cool!"
     # else:
@@ -213,7 +219,6 @@ async def get_luck_threshold_for_user(user: discord.User, bot) -> float:
 
 
 class SantaBot(MetaCog):
-
     # Commands
     @commands.command(
         aliases=[
