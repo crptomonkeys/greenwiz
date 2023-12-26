@@ -6,7 +6,7 @@ import time
 url = "https://api.wax.alohaeos.com:443"
 endpoint = "/v2/history/get_actions"
 
-starting_timestamp = "2023-05-11T00:00:00.000"  # 09 07
+starting_timestamp = "2023-09-07T00:00:00.000"  # 12 16
 
 
 def get_one(account="dao.worlds", actname="votecust", after=None, limit=1000) -> str:
@@ -20,7 +20,7 @@ def get_one(account="dao.worlds", actname="votecust", after=None, limit=1000) ->
     res.raise_for_status()
     result = json.loads(res.content)
     # print(result)
-    return str(result)
+    return result
 
 
 def get_all(_starting_timestamp) -> str:
@@ -32,10 +32,14 @@ def get_all(_starting_timestamp) -> str:
         try:
             response = get_one(after=last_timestamp)
             last_actions = new_actions
-            new_actions = [action["act"] for action in response["actions"]]
+            try:
+                new_actions = [action["act"] for action in response["actions"]]
+            except TypeError as e:
+                print(f"Error, expected dict but response is {response[:200]} and {len(response)=}")
+                raise e
             results.extend(new_actions)
             last_timestamp = response["actions"][-1]["timestamp"]
-        except (IndexError, requests.exceptions.HTTPError):
+        except (IndexError, requests.exceptions.HTTPError, TypeError):
             print(
                 "IndexError or requests.exceptions.HTTPError occurred while fetching all actions."
             )

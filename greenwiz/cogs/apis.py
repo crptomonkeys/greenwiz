@@ -6,7 +6,6 @@ from utils.util import scope, epoch, today
 
 
 class APIs(MetaCog):
-
     # Commands
     @commands.hybrid_command(
         name="astros", description="Lists all the astronauts currently in space"
@@ -45,7 +44,7 @@ class APIs(MetaCog):
         )
         embed = discord.Embed(title="", description="", color=ctx.author.color)
         num_days = 0
-        for holiday in response:
+        for holiday in response[:24]:
             if True:  # holiday['date'] == today():
                 self.log(holiday, self.bot.debug)
                 num_days += 1
