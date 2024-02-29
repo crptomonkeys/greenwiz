@@ -26,6 +26,7 @@ async def confirmation_on(user, confirmed_ids):
 class Moderation(MetaCog):
     def __init__(self, bot):
         self.confirmed_ids = dict()
+        bot.MAX_MASS_PING_AMOUNT = 30
         super().__init__(bot)
 
     @commands.Cog.listener()
@@ -77,15 +78,15 @@ class Moderation(MetaCog):
             banned_modifiers = ["cool", "legit", "nice", "makes", "airdrop"]
             for phrase in banned_modifiers:
                 if phrase in content:
-                    flag = "posting scam website links"
+                    flag = "potentially posting scam website links"
                     break
 
         # Scan for embeded links which can mislead users as to where they lead
         if "](" in content and "[" in content and ")" in content:
-            pattern = r'\[(.*?)\]\((.*?)\)'
+            pattern = r"\[(.*?)\]\((.*?)\)"
             matches = re.findall(pattern, content)
             for label, link in matches:
-                label_is_link = re.search(r'^(https?://|www\.)\S+', label)
+                label_is_link = re.search(r"^(https?://|www\.)\S+", label)
                 if not label_is_link:
                     continue
                 if label != link:
@@ -107,7 +108,11 @@ class Moderation(MetaCog):
         ):
             flag = "posting scam website links"
 
-        if not flag and len(message.mentions) > 20 and not has_nifty(message.author):
+        if (
+            not flag
+            and len(message.mentions) > self.bot.MAX_MASS_PING_AMOUNT
+            and not has_nifty(message.author, self.bot)
+        ):
             flag = "mass pinging people"
 
         if not flag:
@@ -118,7 +123,11 @@ class Moderation(MetaCog):
         )
         channel = message.guild.get_channel(770556844351422464) or message.channel
 
-        if flag in ["posting scam claim links", "posting misleading links"]:
+        if flag in [
+            "posting scam claim links",
+            "posting misleading links",
+            "potentially posting scam website links",
+        ]:
             contents = content[:1940].replace("`", "")
             await channel.send(
                 f"<@&733313838375632979>, I think I detected {message.author} "
