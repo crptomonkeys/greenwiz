@@ -7,7 +7,7 @@ from collections import deque
 from typing import Optional, Union, Any
 
 import discord
-from aioeos import EosAccount
+from aioeosabi import EosAccount
 from discord import TextChannel, Forbidden, HTTPException
 from discord.ext import commands, tasks  # type: ignore
 
@@ -93,7 +93,9 @@ class Wax(MetaCog):
     )
     @commands.check(monkeyprinter())
     @commands.check(scope())
-    async def send_nft(self, ctx: commands.Context[Any], destination: str, *, asset_id: int):
+    async def send_nft(
+        self, ctx: commands.Context[Any], destination: str, *, asset_id: int
+    ):
         asset_ids = [asset_id]
         result = await self.bot.wax_con.transfer_assets(
             destination, asset_ids, sender=ctx.author.name
@@ -204,7 +206,12 @@ class Wax(MetaCog):
     @commands.check(monkeyprinter())
     @commands.check(scope())
     async def claimlink(
-        self, ctx: commands.Context[Any], member: discord.Member, card: int = 0, *, memo=None
+        self,
+        ctx: commands.Context[Any],
+        member: discord.Member,
+        card: int = 0,
+        *,
+        memo=None,
     ):
         if card != 0 and card < 1000:
             # convert card # to template id
@@ -471,7 +478,9 @@ class Wax(MetaCog):
             )
             if counter >= number and resp.author.id not in set(self.recent_drops):
                 break
-        assert resp is not None, "The winning message was deleted before a loot could be sent."
+        assert (
+            resp is not None
+        ), "The winning message was deleted before a loot could be sent."
         # Prevents the same person from receiving two drops in a row
         self.recent_drops.appendleft(resp.author.id)
         log("attempting to send a loot", "DBUG")
@@ -552,7 +561,9 @@ class Wax(MetaCog):
 
     @commands.command(description="Fetch the top monkeysmatch completers")
     @commands.check(monkeyprinter())
-    async def monkeysmatch(self, ctx: commands.Context[Any], completions: Optional[int] = 1):
+    async def monkeysmatch(
+        self, ctx: commands.Context[Any], completions: Optional[int] = 1
+    ):
         """Fetches all wax addresses who have completed at least n games of monkeysmatch. Default 1."""
         res = await self.bot.wax_con.monkeysmatch_top(completions)
 

@@ -26,10 +26,17 @@ from typing import List, Union, Optional, Any
 
 import aiohttp
 import discord
-from aioeos import EosTransaction, EosKey, EosJsonRpc, EosAction, serializer, EosAccount
-from aioeos.contracts import eosio_token
-from aioeos.exceptions import EosAssertMessageException, EosRpcException
-from aioeos.rpc import ERROR_NAME_MAP
+from aioeosabi import (
+    EosTransaction,
+    EosKey,
+    EosJsonRpc,
+    EosAction,
+    serializer,
+    EosAccount,
+)
+from aioeosabi.contracts import eosio_token
+from aioeosabi.exceptions import EosAssertMessageException, EosRpcException
+from aioeosabi.rpc import ERROR_NAME_MAP
 from aiohttp import ServerDisconnectedError, ClientConnectorError, ClientOSError
 from discord import Forbidden, HTTPException
 
@@ -680,7 +687,8 @@ class WaxConnection:
         _max: int = 50,
     ) -> tuple[bool, str]:
         """Cancels all the links with the specified IDs.
-        Raises an exception if there are more than _max links due to chain CPU constraints."""
+        Raises an exception if there are more than _max links due to chain CPU constraints.
+        """
         if len(link_ids) > _max:
             raise AssertionError(
                 f"""{len(link_ids)} is too many claim links to cancel in one transaction,
@@ -1059,8 +1067,10 @@ async def send_link_start_to_finish(
         raise AssertionError("Guild member' should always be a Member.")
     while intro:
         if not isinstance(introduced, discord.abc.Snowflake):
-            raise AssertionError("When post is classed as an intro and introduced role is defined,"
-                                 " introduced role should be addable.")
+            raise AssertionError(
+                "When post is classed as an intro and introduced role is defined,"
+                " introduced role should be addable."
+            )
         # To ensure it gets added if discord messes up initially
         await member.add_roles(introduced)
         if introduced in member.roles:
