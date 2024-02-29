@@ -127,9 +127,9 @@ async def attempt_to_send_daily_reward_ban_or_send_cm_instead(
 
 
 async def send_daily_reward(ctx, bot, base_luck_for_user: float = 1.0):
-    return await ctx.send(
-        "Santa is finished for the year. Hope you enjoyed. Happy new year!"
-    )
+    # return await ctx.send(
+    #     "Santa is finished for the year. Hope you enjoyed. Happy new year!"
+    # )
     author = ctx.author
     luck = random.random()
     reroll = random.random()
@@ -144,7 +144,7 @@ async def send_daily_reward(ctx, bot, base_luck_for_user: float = 1.0):
             bot.session,
             author,
             bot,
-            500.0
+            500.0,
             # bot.session, author, bot, 200.0
         )
     elif luck > 0.2:
