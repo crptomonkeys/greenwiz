@@ -367,9 +367,7 @@ class WaxConnection:
                     self.log(
                         f"Attempting to prepare action {action.account}::{action.name}::{action.data}"
                     )
-                    abi_bin = await rpc.abi_json_to_bin(
-                        action.account, action.name, action.data
-                    )
+                    abi_bin = await rpc.abi_json_to_bin(action)
                     action.data = binascii.unhexlify(abi_bin["binargs"])
                 suc = rpc.URL
                 self.log(
