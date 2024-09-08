@@ -298,7 +298,7 @@ class Dev(MetaCog):
         )
         if result is not None:
             if len(str(result)) > 1900:
-                return await ctx.send(await self.bot.create_bin(result))
+                return await ctx.send(result[:1900])
         await ctx.send(f"Result: {result}")
 
     @commands.command()
