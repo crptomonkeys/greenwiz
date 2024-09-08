@@ -1,7 +1,8 @@
 """Helpers for creating actions on monkeysmatch contract. By Vyryn"""
+
 from os import urandom
 from hashlib import sha256
-from aioeos import types, EosKey
+from aioeosabi import types, EosKey
 
 contract = "monkeysmatch"
 

@@ -1,12 +1,13 @@
 """
 The command error handler.
 """
+
 import asyncio
 import traceback
 from json import JSONDecodeError
 
 import discord
-from aioeos.exceptions import EosAssertMessageException
+from aioeosabi.exceptions import EosAssertMessageException
 from discord.ext import commands
 
 from utils.exceptions import (

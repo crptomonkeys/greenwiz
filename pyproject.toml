@@ -7,10 +7,9 @@ license = "AGPL"
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.11"
+python = "^3.10"
 aiohttp = "^3.8.5"
 "discord.py" = "^2.3.1"
-aioeos = "^1.0.2"
 parsedatetime = "^2.6"
 ed25519-blake2b = "^1.4"
 bitarray = "^2.8.0"
@@ -23,6 +22,7 @@ bananopy = "^0.3.3"
 tldextract = "^3.4.4"
 pytz = "^2023.3"
 redis = "^4.6.0"
+aioeosabi = "^0.1.2"
 
 [tool.poetry.group.dev.dependencies]
 flake8 = "^6.0.0"

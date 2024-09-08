@@ -1,5 +1,6 @@
 """Helpers for creating actions on atomicassets contract. By Vyryn"""
-from aioeos import types
+
+from aioeosabi import types
 
 contract = "atomicassets"
 
