@@ -368,7 +368,7 @@ async def addresses_in_csv_from_msg_link(bot, link: str):
     contents = await addrs_from_txt(msg.attachments[0])
     return [x.split(",")[0] for x in contents]
 
-async def send_random_nft_to_each(bot, addresses: List[str], memo: str) -> List[str]:
+async def send_random_nft_to_each(bot, addresses: typing.List[str], memo: str) -> typing.List[str]:
     """Sends a random NFT to each wax address in a given list. ctx.sends a list of transaction hashes as it goes."""
     from utils.settings import TIP_ACC_PERMISSION, DEFAULT_WAX_COLLECTION
     from wax_chain.wax_contracts import atomicassets
