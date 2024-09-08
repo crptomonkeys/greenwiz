@@ -238,7 +238,9 @@ async def parse_user(
     except ValueError:
         pass
     try:
-        user_obj = ctx.guild.get_member_named(user) or ctx.guild.get_member_named(user[1:])
+        user_obj = ctx.guild.get_member_named(user) or ctx.guild.get_member_named(
+            user[1:]
+        )
         return user_obj
     except (ValueError, TypeError):
         return None
@@ -316,7 +318,8 @@ async def get_addrs_from_content_or_file(
 ) -> tuple[bool, list[str]]:
     """Returns a tuple of bool and list of str.
     The bool is whether the results should be relayed inline or in a file.
-    The list is a list of addresses from either the message attachment, if available, or the message content."""
+    The list is a list of addresses from either the message attachment, if available, or the message content.
+    """
     if hasattr(message, "attachments") and len(message.attachments) > 0:
         return (False, await addrs_from_file(message.attachments[0]))
 
@@ -350,6 +353,7 @@ async def addrs_from_csv(file: discord.Attachment) -> list[str]:
     contents = file_bytes.decode("utf-8").split(",")
     return [i.lower() for i in contents]
 
+
 async def msg_from_link(bot, link: str) -> discord.Message:
     """Fetches a message object from a message link"""
     try:
@@ -358,25 +362,35 @@ async def msg_from_link(bot, link: str) -> discord.Message:
         raise InvalidInput(f"Link {link} is improperly formatted.") from e
     guild = bot.get_guild(guild_id)
     channel = guild.get_channel(channel_id)
-    return await channel.fetch_message(msg_id)
+    res: discord.Message = await channel.fetch_message(msg_id)
+    return res
+
 
 async def addresses_in_csv_from_msg_link(bot, link: str):
-    """Fetches the message corresponding to a link, loads the attachment, 
+    """Fetches the message corresponding to a link, loads the attachment,
     and returns a list of the first item in each column as a csv."""
     msg = await msg_from_link(bot, link)
-    assert len(msg.attachments) >= 1, 'Linked message does not have an attachment'
+    assert len(msg.attachments) >= 1, "Linked message does not have an attachment"
     contents = await addrs_from_txt(msg.attachments[0])
     return [x.split(",")[0] for x in contents]
 
-async def send_random_nft_to_each(bot, ctx, addresses: typing.List[str], memo: str) -> typing.List[str]:
+
+async def send_random_nft_to_each(
+    bot, ctx, addresses: typing.List[str], memo: str
+) -> typing.List[str]:
     """Sends a random NFT to each wax address in a given list. ctx.sends a list of transaction hashes as it goes."""
     from utils.settings import TIP_ACC_PERMISSION, DEFAULT_WAX_COLLECTION
     from wax_chain.wax_contracts import atomicassets
     from wax_chain.wax_util import InvalidWaxCardSend
+
     actions = []
     tx_ids = []
+
+    def random_id():
+        return bot.cached_card_ids["crptomonkeys"].pop()
+
     for receiver in addresses:
-        random_id = lambda: bot.cached_card_ids["crptomonkeys"].pop()
+
         action = atomicassets.transfer(
             from_addr=bot.wax_ac[DEFAULT_WAX_COLLECTION].name,
             to_addr=receiver,
@@ -390,25 +404,33 @@ async def send_random_nft_to_each(bot, ctx, addresses: typing.List[str], memo: s
         # Send in batches of 10
         if len(actions) > 9:
             try:
-                result = await bot.wax_con.execute_transaction(actions, sender_ac=DEFAULT_WAX_COLLECTION)
+                result = await bot.wax_con.execute_transaction(
+                    actions, sender_ac=DEFAULT_WAX_COLLECTION
+                )
                 tx_id = result["transaction_id"]
                 tx_ids.append(tx_id)
                 tx_link = f"https://wax.bloks.io/transaction/{tx_id}"
                 await ctx.send(tx_link)
                 actions = []
             except InvalidWaxCardSend:
-                await ctx.send(f"All the APIs I'm connected to are down at the moment. Stopping. Successful transactions: {tx_ids}")
-                return
+                await ctx.send(
+                    f"All the APIs I'm connected to are down at the moment. Stopping. Successful transactions: {tx_ids}"
+                )
+                return tx_ids
     if len(actions) > 0:
         try:
-            result = await bot.wax_con.execute_transaction(actions, sender_ac=DEFAULT_WAX_COLLECTION)
+            result = await bot.wax_con.execute_transaction(
+                actions, sender_ac=DEFAULT_WAX_COLLECTION
+            )
             tx_id = result["transaction_id"]
             tx_ids.append(tx_id)
             tx_link = f"https://wax.bloks.io/transaction/{tx_id}"
             await ctx.send(tx_link)
             actions = []
         except InvalidWaxCardSend:
-            await ctx.send(f"All the APIs I'm connected to are down at the moment. Stopping. Successful transactions: {tx_ids}")
-            return
+            await ctx.send(
+                f"All the APIs I'm connected to are down at the moment. Stopping. Successful transactions: {tx_ids}"
+            )
+            return tx_ids
 
     return tx_ids
