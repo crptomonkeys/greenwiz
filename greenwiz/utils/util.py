@@ -338,7 +338,7 @@ async def addrs_from_file(file: discord.Attachment) -> list[str]:
     if file.filename[-4:] == ".csv":
         return await addrs_from_csv(file)
     res = await addrs_from_txt(file)
-    if len(res) < 2 and "," in res:
+    if len(res) < 2 and "," in "".join(res):
         res = [x for x in res[0].split(",")]
     return res
 
