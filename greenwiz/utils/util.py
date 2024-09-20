@@ -3,6 +3,7 @@ import typing
 from datetime import datetime, timezone, timedelta
 
 import discord
+from aioeosabi.exceptions import EosAssertMessageException
 
 from utils.exceptions import InvalidInput
 
@@ -402,6 +403,8 @@ async def send_random_nft_to_each(
 
     actions = []
     tx_ids = []
+    failed_addrs = set(addresses)
+    queued_addrs: set[str] = set()
 
     def random_id():
         return bot.cached_card_ids["crptomonkeys"].pop()
@@ -418,6 +421,7 @@ async def send_random_nft_to_each(
             ],
         )
         actions.append(action)
+        queued_addrs.add(receiver)
         # Send in batches of 20
         if len(actions) > 19:
             try:
@@ -429,11 +433,18 @@ async def send_random_nft_to_each(
                 tx_link = f"https://wax.bloks.io/transaction/{tx_id}"
                 await ctx.send(tx_link)
                 actions = []
+                failed_addrs.difference_update(set(queued_addrs))
+                queued_addrs.clear()
             except InvalidWaxCardSend:
                 await ctx.send(
                     f"All the APIs I'm connected to are down at the moment. Stopping. Successful transactions: {tx_ids}"
                 )
                 return tx_ids
+            except EosAssertMessageException as e:
+                await ctx.send(str(e))
+                queued_addrs.clear()
+                actions = []
+
     if len(actions) > 0:
         try:
             result = await bot.wax_con.execute_transaction(
@@ -448,6 +459,8 @@ async def send_random_nft_to_each(
             await ctx.send(
                 f"All the APIs I'm connected to are down at the moment. Stopping. Successful transactions: {tx_ids}"
             )
-            return tx_ids
-
+    if len(failed_addrs) > 0:
+        await ctx.send(
+            f"Failed to send to {len(failed_addrs)} addresses:\n{[failed_addrs]}"[:1990]
+        )
     return tx_ids
