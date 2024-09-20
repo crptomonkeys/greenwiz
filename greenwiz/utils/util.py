@@ -337,7 +337,10 @@ async def addrs_from_file(file: discord.Attachment) -> list[str]:
         raise InvalidInput("Please provide a .txt or .csv file, I can't read that one.")
     if file.filename[-4:] == ".csv":
         return await addrs_from_csv(file)
-    return await addrs_from_txt(file)
+    res = await addrs_from_txt(file)
+    if len(res) < 2 and "," in res:
+        res = [x for x in res[0].split(",")]
+    return res
 
 
 async def addrs_from_txt(file: discord.Attachment) -> list[str]:
