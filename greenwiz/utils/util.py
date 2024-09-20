@@ -366,6 +366,20 @@ async def msg_from_link(bot, link: str) -> discord.Message:
     return res
 
 
+async def addresses_from_msg_link(
+    bot, link: str, repeat: bool = True, line_function: typing.Callable = lambda x: x
+):
+    """Fetches the message corresponding to a link, loads the attachment,
+    and returns a list of the first item in each column as a csv."""
+    msg = await msg_from_link(bot, link)
+    assert len(msg.attachments) >= 1, "Linked message does not have an attachment"
+    contents = await addrs_from_file(msg.attachments[0])
+    res = [line_function(x) for x in contents]
+    if not repeat:
+        res = list(set(res))
+    return res
+
+
 async def addresses_in_csv_from_msg_link(bot, link: str):
     """Fetches the message corresponding to a link, loads the attachment,
     and returns a list of the first item in each column as a csv."""
