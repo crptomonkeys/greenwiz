@@ -394,7 +394,7 @@ async def addresses_in_csv_from_msg_link(bot, link: str):
 
 
 async def send_random_nft_to_each(
-    bot, ctx, addresses: typing.List[str], memo: str
+    bot, ctx, addresses: typing.List[str], memo: str, batch_size: int = 20
 ) -> typing.List[str]:
     """Sends a random NFT to each wax address in a given list. ctx.sends a list of transaction hashes as it goes."""
     from utils.settings import TIP_ACC_PERMISSION, DEFAULT_WAX_COLLECTION
@@ -422,8 +422,8 @@ async def send_random_nft_to_each(
         )
         actions.append(action)
         queued_addrs.add(receiver)
-        # Send in batches of 20
-        if len(actions) > 19:
+        # Send in batches of batch_size
+        if len(actions) > batch_size - 1:
             try:
                 result = await bot.wax_con.execute_transaction(
                     actions, sender_ac=DEFAULT_WAX_COLLECTION
@@ -461,6 +461,8 @@ async def send_random_nft_to_each(
             )
     if len(failed_addrs) > 0:
         await ctx.send(
-            f"Failed to send to {len(failed_addrs)} addresses:\n{[failed_addrs]}"[:1990]
+            f"Failed to send to {len(failed_addrs)} addresses:\n{list(failed_addrs)}"[
+                :1990
+            ]
         )
     return tx_ids
