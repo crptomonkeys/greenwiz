@@ -415,8 +415,8 @@ async def send_random_nft_to_each(
             ],
         )
         actions.append(action)
-        # Send in batches of 10
-        if len(actions) > 9:
+        # Send in batches of 20
+        if len(actions) > 19:
             try:
                 result = await bot.wax_con.execute_transaction(
                     actions, sender_ac=DEFAULT_WAX_COLLECTION
