@@ -455,6 +455,8 @@ async def send_random_nft_to_each(
             tx_link = f"https://wax.bloks.io/transaction/{tx_id}"
             await ctx.send(tx_link)
             actions = []
+            failed_addrs.difference_update(set(queued_addrs))
+            queued_addrs.clear()
         except InvalidWaxCardSend:
             await ctx.send(
                 f"All the APIs I'm connected to are down at the moment. Stopping. Successful transactions: {tx_ids}"
