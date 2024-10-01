@@ -44,11 +44,11 @@ async def send_ban_to_user(
         f"uid={user.id}&code={settings.BANANO_DISTRIBUTION_AUTH_CODE}&amount={amount}"
     )
     response = await session.get(f"{connect_url}{drop_banano_endpoint}?{params}")
+    log(response.content)
 
     json_resp: dict[str, Any] = {}
     try:
         json_resp = await response.json()
-        log(json_resp)
     except aiohttp.ClientConnectionError:
         log("Unable to connect to api to fetch usernames.", "WARN")
     except aiohttp.ContentTypeError:
