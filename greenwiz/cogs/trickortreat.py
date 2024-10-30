@@ -166,7 +166,7 @@ async def send_daily_reward(ctx, bot, base_luck_for_user: float = 1.0):
         reroll < base_luck_for_user
     )  # Secondary roll to make rewards more likely for higher role users
     if not secondary_success or luck < 0.333:
-        msg = "Whoops! You were a naughty monkey, and Santa left you coal."
+        msg = "Trick! You were a naughty monkey, no treat for you today."
         record_user_opened_today_gift(author.id, "coal")
     else:
         await send_daily_reward_cryptomonkey(bot, author)
