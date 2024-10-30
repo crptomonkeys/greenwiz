@@ -125,6 +125,39 @@ async def attempt_to_send_daily_reward_ban_or_send_cm_instead(
     return msg
 
 
+# async def send_daily_reward(ctx, bot, base_luck_for_user: float = 1.0):
+#     author = ctx.author
+#     luck = random.random()
+#     reroll = random.random()
+#     secondary_success = (
+#         reroll < base_luck_for_user
+#     )  # Secondary roll to make rewards more likely for higher role users
+#     if not secondary_success:
+#         amount = random.randint(4, 10)
+#         msg = await attempt_to_send_daily_reward_ban_or_send_cm_instead(
+#             bot.session, author, bot, float(amount)
+#         )
+#     if luck > 0.99:
+#         msg = await attempt_to_send_daily_reward_ban_or_send_cm_instead(
+#             bot.session, author, bot, 500.0
+#         )
+#     elif luck > 0.6:
+#         amount = random.randint(19, 42)
+#         msg = await attempt_to_send_daily_reward_ban_or_send_cm_instead(
+#             bot.session, author, bot, float(amount)
+#         )
+#     elif luck > 0.3:
+#         await send_daily_reward_cryptomonkey(bot, author)
+#         msg = "Treat! You got a cryptomonKeys NFT"
+#     else:
+#         amount = random.randint(10, 19)
+#         msg = await attempt_to_send_daily_reward_ban_or_send_cm_instead(
+#             bot.session, author, bot, float(amount)
+#         )
+
+#     await err(ctx, msg)
+
+
 async def send_daily_reward(ctx, bot, base_luck_for_user: float = 1.0):
     author = ctx.author
     luck = random.random()
@@ -132,28 +165,12 @@ async def send_daily_reward(ctx, bot, base_luck_for_user: float = 1.0):
     secondary_success = (
         reroll < base_luck_for_user
     )  # Secondary roll to make rewards more likely for higher role users
-    if not secondary_success:
-        amount = random.randint(4, 10)
-        msg = await attempt_to_send_daily_reward_ban_or_send_cm_instead(
-            bot.session, author, bot, float(amount)
-        )
-    if luck > 0.99:
-        msg = await attempt_to_send_daily_reward_ban_or_send_cm_instead(
-            bot.session, author, bot, 500.0
-        )
-    elif luck > 0.6:
-        amount = random.randint(19, 42)
-        msg = await attempt_to_send_daily_reward_ban_or_send_cm_instead(
-            bot.session, author, bot, float(amount)
-        )
-    elif luck > 0.3:
+    if not secondary_success or luck < 0.6:
+        msg = "Whoops! You were a naughty monkey, and Santa left you coal."
+        record_user_opened_today_gift(author.id, "coal")
+    else:
         await send_daily_reward_cryptomonkey(bot, author)
         msg = "Treat! You got a cryptomonKeys NFT"
-    else:
-        amount = random.randint(10, 19)
-        msg = await attempt_to_send_daily_reward_ban_or_send_cm_instead(
-            bot.session, author, bot, float(amount)
-        )
 
     await err(ctx, msg)
 
