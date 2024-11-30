@@ -81,7 +81,6 @@ CRYPTOMONKEY_DROP_ADMINS = [
     118923557265735680,  # Kron
     416929638426869762,  # ghostcam
     533663361770979369,  # WhiteFlag
-    186285429077573632,  # mithc
 ]
 
 # ============= Defaults for Per-Server Settings ====================
