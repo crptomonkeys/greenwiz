@@ -66,14 +66,15 @@ system_accounts = {
 }
 
 
-def is_valid_wax_address(addr: str, valid_specials: Optional[set[str]] = None) -> bool:
+def is_valid_wax_address(addr: str, valid_specials: Optional[set[str]] = None, case_sensitive: bool = False) -> bool:
     """Returns whether the provided string is a valid wax address. An optional
     valid_specials allows injecting an up to date list of special wax addresses,
      otherwise the stored list will be used. It is recommended to use
      get_special_wax_address_list to provide this function with an up to date list."""
+    flags = 0 if case_sensitive else re.I
     if len(addr) > 12:
         return False
-    match = re.match(r"[a-z1-5\.]{1,12}", addr, flags=re.I)
+    match = re.match(r"[a-z1-5\.]{1,12}", addr, flags=flags)
     if match is None:
         return False
     if match.group() != addr:
@@ -82,7 +83,7 @@ def is_valid_wax_address(addr: str, valid_specials: Optional[set[str]] = None) -
         return True
     if match.group() in system_accounts:
         return True
-    base = re.search(r"\.?(?P<a>[a-z1-5]+$)", match.group(), flags=re.I)
+    base = re.search(r"\.?(?P<a>[a-z1-5]+$)", match.group(), flags=flags)
     if base is None:
         return False
     valid_specials = valid_specials or fallback_special_wax_addresses()

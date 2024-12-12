@@ -216,6 +216,11 @@ class StorageManager:
         await self.redis.hset(f"notes:{user.id}", name, note)
 
     @sanitize_name
+    async def del_note(self, user: discord.User, name: str) -> None:
+        """Deletes a note"""
+        await self.redis.hdel(f"notes:{user.id}", name)
+
+    @sanitize_name
     async def set_codex(self, name: str, note: str, style: str = "codex") -> str:
         """Saves or updates a server-wide note/codex."""
         await self.redis.hset(f"{self.guild_id}:{style}", name, note)
