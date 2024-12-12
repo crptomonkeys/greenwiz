@@ -41,13 +41,6 @@ from wax_chain.wax_util import (
 from wax_chain import link_deletion
 
 
-class EmptyClass:
-    pass
-
-
-# Helper function to get cryptomonKey template id from card #
-
-
 class Wax(MetaCog):
     def __init__(self, bot):
         super().__init__(bot)
