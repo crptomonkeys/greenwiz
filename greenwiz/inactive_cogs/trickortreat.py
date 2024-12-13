@@ -19,7 +19,7 @@ from utils.util import (
     has_cm_role,
     is_citizen,
 )
-from wax_chain.wax_util import announce_and_send_link
+from wax_chain.wax_util import send_and_announce_drop
 
 drop_banano_endpoint = "/accounts/api/v1/drop_ban_discord/"
 connect_url = "https://connect.cryptomonkeys.cc"

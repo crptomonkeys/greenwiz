@@ -371,7 +371,7 @@ async def msg_from_link(bot, link: str) -> discord.Message:
 
 
 async def addresses_from_msg_link(
-    bot, link: str, repeat: bool = True, line_function: typing.Callable = lambda x: x
+    bot, link: str, repeat: bool = True, line_function: typing.Callable[..., typing.Any] = lambda x: x
 ):
     """Fetches the message corresponding to a link, loads the attachment,
     and returns a list of the first item in each column as a csv."""

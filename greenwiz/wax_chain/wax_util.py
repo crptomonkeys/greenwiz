@@ -775,7 +775,7 @@ class WaxConnection:
     async def get_random_assets_to_send(
         self, user: str, num=1, collection: str = DEFAULT_WAX_COLLECTION
     ) -> list[int]:
-        """ Helper function that gets random NFTs to send for drops """ 
+        """Helper function that gets random NFTs to send for drops"""
         if len(self.bot.cached_card_ids[collection]) < 1:
             raise NoCardsException(
                 f"The {collection} Tip Bot account is empty, so I can't send {user} any more "
@@ -783,7 +783,7 @@ class WaxConnection:
             )
 
         selected_asset_ids = []
-        #Ensure parallel executions can't choose the same asset.
+        # Ensure parallel executions can't choose the same asset.
         while self.cl_reentrancy_guard:
             await asyncio.sleep(0.2)
         self.cl_reentrancy_guard = True
@@ -800,7 +800,7 @@ class WaxConnection:
         return selected_asset_ids
 
     def get_memo(
-        self, user: str, memo="", collection: str = DEFAULT_WAX_COLLECTION
+        self, user: str, memo: str = "", collection: str = DEFAULT_WAX_COLLECTION
     ) -> str:
         """ Helper function that creates a valid memo to send for a drop """
         if memo == "":
@@ -915,6 +915,7 @@ async def get_template_id(card_num: int, session: aiohttp.ClientSession) -> int:
             return -1
     return card_info["template_id"]
 
+
 async def announce_drop(
     bot,
     wallet: str,
@@ -1027,47 +1028,46 @@ async def announce_and_send_link(
 
     return int(claim_id)
 
+
 async def send_and_announce_drop(
     bot_,
     member: discord.Member,
     reason: str,
     collection: str = DEFAULT_WAX_COLLECTION,
-    wax_con = None,
+    wax_con=None,
     num: int = 1
 ) -> int:
-    """ 
-        Sends and announces a drop for the specified collection.
-        If the user has a linked wallet, sends the NFT directly to that wallet, otherwise uses a claimlink
-    """
+    """Sends and announces a drop for the specified collection.
+    If the user has a linked wallet, sends the NFT directly to that wallet, otherwise uses a claimlink"""
     if wax_con is None:
         wax_con = bot_.wax_con
 
     linked_wallet = await bot_.storage[None].get_note(member, "LinkedWallet")
     if linked_wallet == "Not found.":
         link = await wax_con.get_random_claim_link(
-            str(member)[:50], memo=reason, num=num,collection=collection
+            str(member)[:50], memo=reason, num=num, collection=collection
         )
-        
+
         assert "https://wax.atomichub.io/trading/link/" in link, (
             f"I received an invalid claimlink trying to send a claimlink to {member}. This shouldn't have happened, "
             f"please let Vyryn know. Details: {link}"
         )
 
+        memo = wax_con.get_memo(user=str(member)[:50], memo=reason, collection=collection)
         claim_id = await announce_and_send_link(bot_, link, member, memo)
 
         bot_.log(f"Announced and sent link {claim_id}", "DBUG")
         return claim_id
 
-
     else:
         memo = wax_con.get_memo(user=str(member)[:50], memo=reason, collection=collection)
         selected_asset_ids = await wax_con.get_random_assets_to_send(user=str(member), num=num, collection=collection)
-        result = await wax_con.transfer_assets(
+        await wax_con.transfer_assets(
             receiver=linked_wallet, asset_ids=selected_asset_ids, sender_ac=collection, memo=memo
         )
-        claim_id = await announce_drop(bot_, linked_wallet, selected_asset_ids, member, memo)
-        #TODO
-        return claim_id[0]
+        claim_ids = await announce_drop(bot_, linked_wallet, selected_asset_ids, member, memo)
+        # TODO
+        return claim_ids[0]
 
 
 async def send_link_start_to_finish(
@@ -1153,7 +1153,9 @@ async def send_link_start_to_finish(
     try:
         await message.add_reaction("⌛")
 
-        claim_id = await send_and_announce_drop(bot_=bot_, member=member, reason=reason, collection=collection, wax_con=wax_con, num=num)
+        claim_id = await send_and_announce_drop(
+            bot_=bot_, member=member, reason=reason, collection=collection, wax_con=wax_con, num=num
+        )
 
         if authd < 2:
             incr_given_today(sender.id)
