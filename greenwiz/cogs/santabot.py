@@ -167,14 +167,14 @@ async def send_daily_reward(ctx, bot, base_luck_for_user: float = 1.0):
 
 async def send_daily_reward_cryptomonkey(bot, user: discord.Member) -> None:
     memo = f"Santa's treat for {user.name} on {today()}"
-    claim_id = await send_and_announce_drop(bot_=bot, member=user, reason=memo)
-    record_user_opened_today_gift(user.id, f"cryptomonKey #{claim_id}")
+    claim_ids = await send_and_announce_drop(bot_=bot, member=user, reason=memo)
+    record_user_opened_today_gift(user.id, f"cryptomonKey #{claim_ids}")
 
 
 async def send_coal(bot, user: discord.Member) -> None:
     memo = f"Santa's coal for {user.name} on {today()}"
-    claim_id = await send_and_announce_drop(bot_=bot, member=user, reason=memo)
-    record_user_opened_today_gift(user.id, f"Coal #{claim_id}")
+    claim_ids = await send_and_announce_drop(bot_=bot, member=user, reason=memo)
+    record_user_opened_today_gift(user.id, f"Coal #{claim_ids}")
 
 
 async def send_daily_reward_ban(

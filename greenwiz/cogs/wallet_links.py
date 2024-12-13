@@ -16,14 +16,17 @@ class WalletLinks(MetaCog):
     async def set_wallet(
         self, ctx: commands.Context[Any], wallet: str
     ):
+        """Set your wallet to make the Green Wizard send any future drops directly there!
+        For example, if your address is `cmcdrops4all`, use `,setwallet cmcdrops4all`.
+        If you change your mind, you can always choose to clear this by using `,clearwallet`.
+        """ 
+        log_channel = self.bot.get_channel(1317156771868971091)
         if not is_valid_wax_address(wallet, valid_specials=self.bot.special_addr_list, case_sensitive=True):
             await ctx.send(f"Invalid wallet {wallet}")
             return
-        try:
-            await self.bot.storage[None].set_note(ctx.author, "LinkedWallet", wallet)
-        except Exception as e:
-            await ctx.send(f"Failed to set wallet {e}")
-            return
+        await log_channel.send(f"User <@{ctx.author.id}> set their wallet to {wallet}")
+
+        await self.bot.storage[None].set_note(ctx.author, "LinkedWallet", wallet)
         await ctx.send("Successfully set wallet")
 
     @commands.hybrid_command(
@@ -51,6 +54,8 @@ class WalletLinks(MetaCog):
             await ctx.send("No wallet currenty linked.")
         else:
             await self.bot.storage[None].del_note(ctx.author, "LinkedWallet")
+            log_channel = self.bot.get_channel(1317156771868971091)
+            await log_channel.send(f"User <@{ctx.author.id}> cleared their set wallet")
             await ctx.send("Linked wallet cleared")
 
 
