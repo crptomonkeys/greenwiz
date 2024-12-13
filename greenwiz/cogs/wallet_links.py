@@ -19,7 +19,7 @@ class WalletLinks(MetaCog):
         """Set your wallet to make the Green Wizard send any future drops directly there!
         For example, if your address is `cmcdrops4all`, use `,setwallet cmcdrops4all`.
         If you change your mind, you can always choose to clear this by using `,clearwallet`.
-        """ 
+        """
         log_channel = self.bot.get_channel(1317156771868971091)
         if not is_valid_wax_address(wallet, valid_specials=self.bot.special_addr_list, case_sensitive=True):
             await ctx.send(f"Invalid wallet {wallet}")

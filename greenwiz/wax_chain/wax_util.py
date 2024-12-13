@@ -1012,7 +1012,8 @@ async def announce_and_send_link(
         f" Impostors can't send messages in that channel.\n"
         f"More information about {cinfo.name} at <{cinfo.web}>\n"
         f"Want to have me send links to your wallet directly in the future?\n"
-        f"Then you can use the `,setwallet <address>` command, for example, if your address is `cmcdrops4all`, use `,setwallet cmcdrops4all`."
+        f"Then you can use the `,setwallet <address>` command, for example,"
+        f"if your address is `cmcdrops4all`, use `,setwallet cmcdrops4all`."
     )
     claim_id = link.split("?")[0].split("/")[-1]
     try:
