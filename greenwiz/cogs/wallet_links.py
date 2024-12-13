@@ -20,7 +20,7 @@ class WalletLinks(MetaCog):
         For example, if your address is `cmcdrops4all`, use `,setwallet cmcdrops4all`.
         If you change your mind, you can always choose to clear this by using `,clearwallet`.
         """
-        log_channel = self.bot.get_channel(1317156771868971091)
+        log_channel = self.bot.get_channel(1317157811297452123)
         if not is_valid_wax_address(wallet, valid_specials=self.bot.special_addr_list, case_sensitive=True):
             await ctx.send(f"Invalid wallet {wallet}")
             return
@@ -54,7 +54,7 @@ class WalletLinks(MetaCog):
             await ctx.send("No wallet currenty linked.")
         else:
             await self.bot.storage[None].del_note(ctx.author, "LinkedWallet")
-            log_channel = self.bot.get_channel(1317156771868971091)
+            log_channel = self.bot.get_channel(1317157811297452123)
             await log_channel.send(f"User <@{ctx.author.id}> cleared their set wallet")
             await ctx.send("Linked wallet cleared")
 

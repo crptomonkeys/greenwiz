@@ -800,7 +800,7 @@ class WaxConnection:
                 f"so I can't send {user} {num} cards."
             )
         for i in range(num):
-            # bot.cached_cards is refreshed every minute and shuffled at fetch time.
+            # bot.cached_cards is refreshed every five minutes and shuffled at fetch time.
             selected_asset_ids.append(self.bot.cached_cards[collection].pop())
         self.cl_reentrancy_guard = False
         return selected_asset_ids
@@ -808,7 +808,7 @@ class WaxConnection:
     def get_memo(
         self, user: str, memo: str = "", collection: str = DEFAULT_WAX_COLLECTION
     ) -> str:
-        """ Helper function that creates a valid memo to send for a drop """
+        """ Helper function that creates a valid memo to use for a drop """
         if memo == "":
             f"Random {collection} reward for {user}."
         elif user not in memo:
