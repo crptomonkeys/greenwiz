@@ -1,6 +1,7 @@
 import json
 import typing
 from datetime import datetime, timezone, timedelta
+from dataclasses import dataclass
 
 import discord
 from aioeosabi.exceptions import EosAssertMessageException
@@ -371,7 +372,7 @@ async def msg_from_link(bot, link: str) -> discord.Message:
 
 
 async def addresses_from_msg_link(
-    bot, link: str, repeat: bool = True, line_function: typing.Callable = lambda x: x
+    bot, link: str, repeat: bool = True, line_function: typing.Callable[..., typing.Any] = lambda x: x
 ):
     """Fetches the message corresponding to a link, loads the attachment,
     and returns a list of the first item in each column as a csv."""
@@ -407,7 +408,7 @@ async def send_random_nft_to_each(
     queued_addrs: set[str] = set()
 
     def random_id():
-        return bot.cached_card_ids["crptomonkeys"].pop()
+        return bot.cached_cards["crptomonkeys"].pop().asset_id
 
     for receiver in addresses:
 
@@ -468,3 +469,10 @@ async def send_random_nft_to_each(
             ]
         )
     return tx_ids
+
+
+@dataclass
+class WaxNFT:
+    # Helper class for storing information on cached assets that may be needed later
+    asset_id: int
+    ipfs_hash: str
