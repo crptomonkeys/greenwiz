@@ -54,7 +54,7 @@ from utils.settings import (
     SALT_ACC_PERMISSION,
     MINT_ACC_PERMISSION,
 )
-from utils.util import load_json_var, log, today, write_json_var, usage_react
+from utils.util import load_json_var, log, today, write_json_var, usage_react, WaxNFT
 from wax_chain.collection_config import get_collection_info, determine_collection
 from wax_chain.wax_contracts import atomictoolsx, atomicassets, monkeysmatch
 from wax_chain.wax_contracts.monkeysmatch import gen_salt
@@ -772,22 +772,48 @@ class WaxConnection:
         link = f"https://wax.atomichub.io/trading/link/wax-mainnet/{link_id}?key={priv_key}"
         return link
 
-    async def get_random_claim_link(
-        self, user: str, memo="", num=1, collection: str = DEFAULT_WAX_COLLECTION
-    ) -> str:
-        if memo == "":
-            f"Random {collection} reward for {user}."
-        else:
-            memo += f" ({user})"
-        if not hasattr(self.bot, "cached_card_ids"):
+    async def get_random_assets_to_send(
+        self, user: str, num=1, collection: str = DEFAULT_WAX_COLLECTION
+    ) -> list[WaxNFT]:
+        """Helper function that gets random NFTs to send for drops"""
+        if not hasattr(self.bot, "cached_cards"):
             raise UnableToCompleteRequestedAction(
                 "I'm still loading my cache on startup, try again in a few minutes."
             )
-        if len(self.bot.cached_card_ids[collection]) < 1:
+
+        if len(self.bot.cached_cards[collection]) < 1:
             raise NoCardsException(
                 f"The {collection} Tip Bot account is empty, so I can't send {user} any more "
                 f"cards"
             )
+
+        selected_asset_ids = []
+        # Ensure parallel executions can't choose the same asset.
+        while self.cl_reentrancy_guard:
+            await asyncio.sleep(0.2)
+        self.cl_reentrancy_guard = True
+        n_cards = len(self.bot.cached_cards[collection])
+        if n_cards < num:
+            self.cl_reentrancy_guard = False
+            raise NoCardsException(
+                f"The bot account only has {n_cards} cards at the moment, "
+                f"so I can't send {user} {num} cards."
+            )
+        for i in range(num):
+            # bot.cached_cards is refreshed every five minutes and shuffled at fetch time.
+            selected_asset_ids.append(self.bot.cached_cards[collection].pop())
+        self.cl_reentrancy_guard = False
+        return selected_asset_ids
+
+    def get_memo(
+        self, user: str, memo: str = "", collection: str = DEFAULT_WAX_COLLECTION
+    ) -> str:
+        """ Helper function that creates a valid memo to use for a drop """
+        if memo == "":
+            f"Random {collection} reward for ({user})."
+        else:
+            memo += f" ({user})"
+
         message_length = (
             len(memo) + len(get_collection_info(collection).link_message_append) + 1
         )
@@ -796,22 +822,15 @@ class WaxConnection:
                 f"Your memo must be less than 256 characters long. With the bit I add,"
                 f"it is currently {message_length} characters long."
             )
+        return memo
 
-        # Choose an asset and make a claim link. Ensure parallel executions can't choose the same asset.
-        selected_asset_ids = []
-        while self.cl_reentrancy_guard:
-            await asyncio.sleep(0.2)
-        self.cl_reentrancy_guard = True
-        n_cards = len(self.bot.cached_card_ids[collection])
-        if n_cards < num:
-            raise NoCardsException(
-                f"The bot account only has {n_cards} cards at the moment, "
-                f"so I can't send {user} {num} cards."
-            )
-        for i in range(num):
-            # bot.cached_card_ids is refreshed every minute and shuffled at fetch time.
-            selected_asset_ids.append(self.bot.cached_card_ids[collection].pop())
-        self.cl_reentrancy_guard = False
+    async def get_random_claim_link(
+        self, user: str, memo="", num=1, collection: str = DEFAULT_WAX_COLLECTION
+    ) -> str:
+        memo = self.get_memo(user, memo, collection)
+        # Choose an asset and make a claim link.
+        selected_assets = await self.get_random_assets_to_send(user, num, collection)
+        selected_asset_ids = [asset.asset_id for asset in selected_assets]
         link = await self.create_claimlink(
             selected_asset_ids, memo=memo, collection=collection
         )
@@ -900,6 +919,73 @@ async def get_template_id(card_num: int, session: aiohttp.ClientSession) -> int:
     return card_info["template_id"]
 
 
+async def announce_drop(
+    bot,
+    wallet: str,
+    assets: list[WaxNFT],
+    user: discord.Member,
+    memo: str,
+    num: int = 1,
+    announce: bool = True,
+    collection: str = DEFAULT_WAX_COLLECTION,
+) -> None:
+    """Send a user a message that a random NFT has been sent to their wallet."""
+    cinfo = get_collection_info(collection)
+    if num == 1:
+        nft_info = " NFT."
+        if assets[0].ipfs_hash != "":
+            nft_info = f" [NFT](https://atomichub-ipfs.com/ipfs/{assets[0].ipfs_hash})."
+        to_send = (
+            f"Congratulations! You have won a random {cinfo.name} {nft_info}"
+            f" It's been sent directly to your linked wallet {wallet}, you can see it with the following link\n"
+        )
+    else:
+        to_send = (
+            f"Congratulations! You have won {num} random {cinfo.name} NFTs! They have been"
+            f" sent directly to your linked wallet {wallet}, you can see them with the following links\n"
+        )
+    if num >= 5:
+        to_send += "Note that only links for the first 5 are included, check out the rest in your profile!"
+    channel = bot.get_guild(cinfo.guild).get_channel(cinfo.announce_ch)
+    to_send += (
+        "\n".join(f"<https://wax.atomichub.io/explorer/asset/wax-mainnet/{asset.asset_id}>" for asset in assets[:5])
+    )
+    to_send += (
+        f"\nAvoid scams: before clicking the link, ensure the top level domain is **atomichub.io**\n"
+        f"As an additional security measure, make sure I pinged you in <#{channel.id}> for this link."
+        f" Impostors can't send messages in that channel.\n"
+        f"More information about {cinfo.name} at <{cinfo.web}>"
+    )
+    try:
+        await user.send(to_send)
+    except (HTTPException, Forbidden) as e:
+        asyncio.create_task(schedule_dm_user(user, 60 * 15, to_send))
+        raise UnableToCompleteRequestedAction(
+            f"I couldn't send {user.mention} their drop DM confirmation because {e}. I "
+            f"will try again in 10 minutes."
+        )
+
+    if announce:
+        to_announce = f"{cinfo.emoji} **{memo} Giveaway**"
+        if user.guild is not None:
+            to_announce += f" *(in {user.guild})*"
+        assets_string = ' '.join(
+            [
+                f'[#{item.asset_id}](<https://wax.atomichub.io/explorer/asset/wax-mainnet/{item.asset_id}>)'
+                for item in assets
+            ]
+        )
+        to_announce += (
+            f"\n{user.mention} ({user.id}) has been sent a random {cinfo.name}"
+            f" NFT, asset {assets_string}. Congrats!"
+        )
+        channel = bot.get_guild(cinfo.guild).get_channel(cinfo.announce_ch)
+        try:
+            await channel.send(to_announce)
+        except Forbidden:
+            pass
+
+
 async def announce_and_send_link(
     bot,
     link: str,
@@ -925,8 +1011,11 @@ async def announce_and_send_link(
         f" anyone!\n"
         f"Avoid scams: before clicking a claim link, ensure the top level domain is **atomichub.io**\n"
         f"As an additional security measure, make sure I pinged you in <#{channel.id}> for this link."
-        f"Impostors can't send messages in that channel.\n"
-        f"More information about {cinfo.name} at {cinfo.web}"
+        f" Impostors can't send messages in that channel.\n"
+        f"More information about {cinfo.name} at <{cinfo.web}>\n"
+        f"Want to have me send links to your wallet directly in the future?\n"
+        f"Then you can use the `,setwallet <address>` command, for example,"
+        f"if your address is `cmcdrops4all`, use `,setwallet cmcdrops4all`."
     )
     claim_id = link.split("?")[0].split("/")[-1]
     try:
@@ -945,7 +1034,7 @@ async def announce_and_send_link(
             to_announce += f" *(in {user.guild})*"
         to_announce += (
             f"\n{user.mention} ({user.id}) has been sent a random {cinfo.name}"
-            f" NFT, claim link #{claim_id}. Congrats!"
+            f" NFT, claim link [#{claim_id}](<https://wax.atomichub.io/trading/link/wax-mainnet/{claim_id}>). Congrats!"
         )
         channel = bot.get_guild(cinfo.guild).get_channel(cinfo.announce_ch)
         try:
@@ -956,6 +1045,48 @@ async def announce_and_send_link(
     return int(claim_id)
 
 
+async def send_and_announce_drop(
+    bot_,
+    member: discord.Member,
+    reason: str,
+    collection: str = DEFAULT_WAX_COLLECTION,
+    wax_con=None,
+    num: int = 1
+) -> list[int]:
+    """Sends and announces a drop for the specified collection.
+    If the user has a linked wallet, sends the NFT directly to that wallet, otherwise uses a claimlink"""
+    if wax_con is None:
+        wax_con = bot_.wax_con
+
+    linked_wallet = await bot_.storage[None].get_note(member, "LinkedWallet")
+    if linked_wallet == "Not found.":
+        link = await wax_con.get_random_claim_link(
+            str(member)[:50], memo=reason, num=num, collection=collection
+        )
+
+        assert "https://wax.atomichub.io/trading/link/" in link, (
+            f"I received an invalid claimlink trying to send a claimlink to {member}. This shouldn't have happened, "
+            f"please let Vyryn know. Details: {link}"
+        )
+
+        memo = wax_con.get_memo(user=str(member)[:50], memo=reason, collection=collection)
+        claim_id = await announce_and_send_link(bot_, link, member, memo)
+
+        bot_.log(f"Announced and sent link {claim_id}", "DBUG")
+        return [claim_id]
+
+    else:
+        memo = wax_con.get_memo(user=str(member)[:50], memo=reason, collection=collection)
+        selected_assets = await wax_con.get_random_assets_to_send(user=str(member), num=num, collection=collection)
+        selected_asset_ids = [asset.asset_id for asset in selected_assets]
+        await wax_con.transfer_assets(
+            receiver=linked_wallet, asset_ids=selected_asset_ids, sender_ac=collection, memo=memo
+        )
+        bot_.log(f"Directly sent assets to user's wallet {selected_asset_ids}", "DBUG")
+        await announce_drop(bot_, linked_wallet, selected_assets, member, memo, num=num)
+        return selected_asset_ids
+
+
 async def send_link_start_to_finish(
     wax_con,
     bot_,
@@ -964,7 +1095,7 @@ async def send_link_start_to_finish(
     sender: discord.User,
     reason: str,
     num: int = 1,
-) -> int:
+) -> list[int]:
     # Verify member
     if member is None:
         raise InvalidInput(
@@ -1034,23 +1165,15 @@ async def send_link_start_to_finish(
             await message.channel.send(
                 f"Command usages today: {used + 1}/{cinfo.daily_limit}"
             )
-            return -1
+            return [-1]
 
     try:
         await message.add_reaction("⌛")
-        link = await wax_con.get_random_claim_link(
-            str(member)[:50], reason, num=num, collection=collection
-        )
-        assert "https://wax.atomichub.io/trading/link/" in link, (
-            f"I received an invalid claimlink trying to send a claimlink to {member}. This shouldn't have happened, "
-            f"please let Vyryn know. Details: {link}"
+
+        claim_ids = await send_and_announce_drop(
+            bot_=bot_, member=member, reason=reason, collection=collection, wax_con=wax_con, num=num
         )
 
-        # Announce success and share link with user
-        claim_id = await announce_and_send_link(
-            bot_, link, member, reason, num=num, collection=collection
-        )
-        bot_.log(f"Announced and sent link {claim_id}", "DBUG")
         if authd < 2:
             incr_given_today(sender.id)
     finally:
@@ -1077,7 +1200,7 @@ async def send_link_start_to_finish(
         else:
             await asyncio.sleep(1)
 
-    return claim_id
+    return claim_ids
 
 
 async def get_card_dict(

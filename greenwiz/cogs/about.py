@@ -55,7 +55,7 @@ class About(MetaCog):
                 )
         commits = list(
             itertools.islice(
-                repo.walk(repo.head.target, pygit2.GIT_SORT_TOPOLOGICAL), 5
+                repo.walk(repo.head.target, pygit2.GIT_SORT_TOPOLOGICAL), 5  # type: ignore
             )
         )
         revision = "\n".join(format_commit(c) for c in commits)
