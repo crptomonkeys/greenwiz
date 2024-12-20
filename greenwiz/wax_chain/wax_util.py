@@ -810,8 +810,8 @@ class WaxConnection:
     ) -> str:
         """ Helper function that creates a valid memo to use for a drop """
         if memo == "":
-            f"Random {collection} reward for {user}."
-        elif user not in memo:
+            f"Random {collection} reward for ({user})."
+        else:
             memo += f" ({user})"
 
         message_length = (
@@ -932,9 +932,11 @@ async def announce_drop(
     """Send a user a message that a random NFT has been sent to their wallet."""
     cinfo = get_collection_info(collection)
     if num == 1:
+        nft_info = " NFT."
+        if assets[0].ipfs_hash != "":
+            nft_info = f" [NFT](https://atomichub-ipfs.com/ipfs/{assets[0].ipfs_hash})."
         to_send = (
-            f"Congratulations! You have won a random {cinfo.name}"
-            f" [NFT](https://atomichub-ipfs.com/ipfs/{assets[0].ipfs_hash})."
+            f"Congratulations! You have won a random {cinfo.name} {nft_info}"
             f" It's been sent directly to your linked wallet {wallet}, you can see it with the following link\n"
         )
     else:

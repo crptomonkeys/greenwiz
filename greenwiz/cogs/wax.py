@@ -537,10 +537,17 @@ class Wax(MetaCog):
                         return
                 for item in response:
                     asset_id = int(item["asset_id"])
-                    if "img" in item["data"]:
-                        ipfs_hash = str(item["data"]["img"])
-                    else:
-                        ipfs_hash = str(item["data"]["video"])
+                    ipfs_hash = ""
+                    try:
+                        if "data" in item:
+                            if "img" in item["data"]:
+                                ipfs_hash = str(item["data"]["img"])
+                            elif "video" in item["data"]:
+                                ipfs_hash = str(item["data"]["video"])
+                    except (AttributeError, KeyError):
+                        self.bot.log(
+                            f"Unable to get IPFS hash for asset {asset_id}", "WARN",
+                        )
                     assets.append(WaxNFT(asset_id=asset_id, ipfs_hash=ipfs_hash))
                 if len(response) < 1000:
                     break
