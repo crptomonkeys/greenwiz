@@ -19,7 +19,7 @@ from utils.util import (
     has_cm_role,
     is_citizen,
 )
-from wax_chain.wax_util import announce_and_send_link
+from wax_chain.wax_util import send_and_announce_drop
 
 drop_banano_endpoint = "/accounts/api/v1/drop_ban_discord/"
 connect_url = "https://connect.cryptomonkeys.cc"
@@ -177,9 +177,8 @@ async def send_daily_reward(ctx, bot, base_luck_for_user: float = 1.0):
 
 async def send_daily_reward_cryptomonkey(bot, user: discord.Member) -> None:
     memo = f"Halloween treat for {user.name} on {today()}"
-    link = await bot.wax_con.get_random_claim_link(str(user), memo=memo)
-    claim_id = await announce_and_send_link(bot, link, user, memo)
-    record_user_opened_today_gift(user.id, f"cryptomonKey #{claim_id}")
+    claim_ids = await send_and_announce_drop(bot_=bot, member=user, reason=memo)
+    record_user_opened_today_gift(user.id, f"cryptomonKey #{claim_ids}")
 
 
 async def send_daily_reward_ban(
