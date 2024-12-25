@@ -225,6 +225,7 @@ class SantaBot(MetaCog):
             "gifts",
             "hanukkah",
             "kwanzaa",
+            "yule",
         ]
     )
     @commands.guild_only()
