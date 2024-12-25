@@ -25,6 +25,7 @@ from utils.util import (
     scope,
     now_stamp,
     calc_msg_activity,
+    WaxNFT,
 )
 from wax_chain.collection_config import (
     collections,
@@ -39,13 +40,6 @@ from wax_chain.wax_util import (
     get_card_dict,
 )
 from wax_chain import link_deletion
-
-
-class EmptyClass:
-    pass
-
-
-# Helper function to get cryptomonKey template id from card #
 
 
 class Wax(MetaCog):
@@ -484,17 +478,17 @@ class Wax(MetaCog):
         # Prevents the same person from receiving two drops in a row
         self.recent_drops.appendleft(resp.author.id)
         log("attempting to send a loot", "DBUG")
-        reward_id = await send_link_start_to_finish(
+        reward_ids = await send_link_start_to_finish(
             self.bot.wax_con, self.bot, resp, resp.author, ctx.author, reason
         )
-        if reward_id:
+        if reward_ids:
             if resp.channel != ctx.channel:
                 # Send log in invoking channel
                 await ctx.send(f"Successfully sent loot to {resp.author} in {channel}.")
             # Send response in recieving channel
             return await resp.channel.send(f"Enjoy your loot, {resp.author}!")
         raise AssertionError(
-            f"Invalid reward_id {reward_id} reached on attempted loot distribution"
+            f"Invalid reward_ids {reward_ids} reached on attempted loot distribution"
             f" to {resp.author} by {ctx.author} for {reason}."
         )
 
@@ -526,7 +520,7 @@ class Wax(MetaCog):
         if self.session.closed:
             return
         for key, value in collections.items():
-            asset_ids: set[int] = set()
+            assets: list[WaxNFT] = []
             page = 1
             while True:
                 param = f'assets?owner={value["drop_ac"]}&limit=1000&collection_whitelist={value["collection"]}'
@@ -541,18 +535,31 @@ class Wax(MetaCog):
                             "WARN",
                         )
                         return
-                asset_ids.update(int(item["asset_id"]) for item in response)
+                for item in response:
+                    asset_id = int(item["asset_id"])
+                    ipfs_hash = ""
+                    try:
+                        if "data" in item:
+                            if "img" in item["data"]:
+                                ipfs_hash = str(item["data"]["img"])
+                            elif "video" in item["data"]:
+                                ipfs_hash = str(item["data"]["video"])
+                    except (AttributeError, KeyError):
+                        self.bot.log(
+                            f"Unable to get IPFS hash for asset {asset_id}", "WARN",
+                        )
+                    assets.append(WaxNFT(asset_id=asset_id, ipfs_hash=ipfs_hash))
                 if len(response) < 1000:
                     break
                 page += 1
             self.bot.log(
-                f"{now_stamp()} Updated cached card ids for {key}: {len(asset_ids)} cards found."
+                f"{now_stamp()} Updated cached card ids for {key}: {len(assets)} cards found."
             )
-            if not hasattr(self.bot, "cached_card_ids"):
-                self.bot.cached_card_ids = dict()
+            if not hasattr(self.bot, "cached_cards"):
+                self.bot.cached_cards = dict()
 
-            self.bot.cached_card_ids[key] = list(asset_ids)
-            random.shuffle(self.bot.cached_card_ids[key])
+            self.bot.cached_cards[key] = assets
+            random.shuffle(self.bot.cached_cards[key])
         # By shuffling here, can simulate on the spot random shuffling without needing to use O(n) deletion time.
 
     @update_bot_known_assets.before_loop

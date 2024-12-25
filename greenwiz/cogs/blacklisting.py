@@ -21,13 +21,6 @@ from wax_chain.wax_addresses import (
 )
 
 
-class EmptyClass:
-    pass
-
-
-# Helper function to get cryptomonKey template id from card #
-
-
 class Blacklisting(MetaCog):
     def __init__(self, bot):
         super().__init__(bot)
