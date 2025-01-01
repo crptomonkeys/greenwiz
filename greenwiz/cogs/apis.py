@@ -2,7 +2,7 @@ import discord
 from discord.ext import commands
 
 from utils.meta_cog import MetaCog
-from utils.util import scope, epoch, today
+from utils.util import scope, epoch
 
 
 class APIs(MetaCog):
