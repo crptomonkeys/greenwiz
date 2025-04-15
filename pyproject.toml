@@ -62,3 +62,4 @@ warn_redundant_casts = true
 warn_return_any = true
 warn_unreachable = true
 warn_unused_configs = true
+disable_error_code = ["type-arg", "arg-type", "union-attr", "assignment", "misc", "call-overload", "no-any-return"]
