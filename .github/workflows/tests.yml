@@ -26,7 +26,6 @@ jobs:
       with:
         path: ${{ env.pythonLocation }}
         key: ${{ runner.os }}-${{ matrix.python-version }}-${{ hashFiles('**/poetry.lock') }}
-        restore-keys: ${{ runner.os }}-${{ matrix.python-version }}
 
     - name: Install dependencies
       run: |
@@ -39,14 +38,13 @@ jobs:
       with:
        path: ${{ env.pythonLocation }}
        key: ${{ runner.os }}-${{ matrix.python-version }}-${{ hashFiles('**/poetry.lock') }}
-       restore-keys: ${{ runner.os }}-${{ matrix.python-version }}
       if: steps.cache_restore.outputs.cache-hit != 'true'
 
     - name: Run flake8
       run: |
-        flake8 greenwiz tests
+        poetry run flake8 greenwiz tests
       
     - name: Run mypy
       run: |
-       mypy greenwiz --install-types --non-interactive
-       mypy greenwiz --ignore-missing-imports
+       poetry run mypy greenwiz --install-types --non-interactive
+       poetry run mypy greenwiz --ignore-missing-imports
