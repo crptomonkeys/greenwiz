@@ -44,7 +44,10 @@ jobs:
       run: |
         poetry run flake8 greenwiz tests
       
+    - name: Create mypy cache directory
+      run: mkdir -p .mypy_cache
+
     - name: Run mypy
       run: |
-       poetry run mypy greenwiz --install-types --non-interactive
-       poetry run mypy greenwiz --ignore-missing-imports
+        poetry run mypy greenwiz --install-types --non-interactive --cache-dir=.mypy_cache
+        poetry run mypy greenwiz --ignore-missing-imports --cache-dir=.mypy_cache
