@@ -22,48 +22,47 @@ import hashlib
 import traceback
 from json import JSONDecodeError, dumps
 from time import time
-from typing import List, Union, Optional, Any
+from typing import Any, List, Optional, Union
 
 import aiohttp
 import discord
 from aioeosabi import (
-    EosTransaction,
-    EosKey,
-    EosJsonRpc,
-    EosAction,
-    serializer,
     EosAccount,
+    EosAction,
+    EosJsonRpc,
+    EosKey,
+    EosTransaction,
+    serializer,
 )
 from aioeosabi.contracts import eosio_token
 from aioeosabi.exceptions import EosAssertMessageException, EosRpcException
 from aioeosabi.rpc import ERROR_NAME_MAP
-from aiohttp import ServerDisconnectedError, ClientConnectorError, ClientOSError
+from aiohttp import ClientConnectorError, ClientOSError, ServerDisconnectedError
 from discord import Forbidden, HTTPException
-
 from utils.exceptions import (
+    InvalidInput,
     InvalidResponse,
     UnableToCompleteRequestedAction,
-    InvalidInput,
 )
 from utils.settings import (
     DEFAULT_WAX_COLLECTION,
-    MONKEYMATCH_PRIV_KEY,
-    MONKEYMATCH_ACC_NAME,
-    WAX_CACHE_TIME,
-    TIP_ACC_PERMISSION,
-    SALT_ACC_PERMISSION,
     MINT_ACC_PERMISSION,
+    MONKEYMATCH_ACC_NAME,
+    MONKEYMATCH_PRIV_KEY,
+    SALT_ACC_PERMISSION,
+    TIP_ACC_PERMISSION,
+    WAX_CACHE_TIME,
 )
-from utils.util import load_json_var, log, today, write_json_var, usage_react, WaxNFT
-from wax_chain.collection_config import get_collection_info, determine_collection
-from wax_chain.wax_contracts import atomictoolsx, atomicassets, monkeysmatch
+from utils.util import WaxNFT, load_json_var, log, today, usage_react, write_json_var
+from wax_chain.collection_config import determine_collection, get_collection_info
+from wax_chain.wax_contracts import atomicassets, atomictoolsx, monkeysmatch
 from wax_chain.wax_contracts.monkeysmatch import gen_salt
 from wax_chain.wax_market_utils import (
     atomic_api,
-    get_owners,
+    fair_est,
     get_geometric_regressed_sale_price,
     get_lowest_current_offer,
-    fair_est,
+    get_owners,
 )
 
 wax_history_api = "/v2/history/get_transaction"
@@ -651,6 +650,7 @@ class WaxConnection:
                 ServerDisconnectedError,
                 aiohttp.ClientConnectorCertificateError,
                 ClientOSError,
+                AttributeError,
             ) as e:
                 self.log(
                     f"{type(e)}::{e} for tx_id {tx_id} from {selected.URL}. Continuing..."
@@ -808,7 +808,7 @@ class WaxConnection:
     def get_memo(
         self, user: str, memo: str = "", collection: str = DEFAULT_WAX_COLLECTION
     ) -> str:
-        """ Helper function that creates a valid memo to use for a drop """
+        """Helper function that creates a valid memo to use for a drop"""
         if memo == "":
             f"Random {collection} reward for ({user})."
         else:
@@ -947,8 +947,9 @@ async def announce_drop(
     if num >= 5:
         to_send += "Note that only links for the first 5 are included, check out the rest in your profile!"
     channel = bot.get_guild(cinfo.guild).get_channel(cinfo.announce_ch)
-    to_send += (
-        "\n".join(f"<https://wax.atomichub.io/explorer/asset/wax-mainnet/{asset.asset_id}>" for asset in assets[:5])
+    to_send += "\n".join(
+        f"<https://wax.atomichub.io/explorer/asset/wax-mainnet/{asset.asset_id}>"
+        for asset in assets[:5]
     )
     to_send += (
         f"\nAvoid scams: before clicking the link, ensure the top level domain is **atomichub.io**\n"
@@ -969,9 +970,9 @@ async def announce_drop(
         to_announce = f"{cinfo.emoji} **{memo} Giveaway**"
         if user.guild is not None:
             to_announce += f" *(in {user.guild})*"
-        assets_string = ' '.join(
+        assets_string = " ".join(
             [
-                f'[#{item.asset_id}](<https://wax.atomichub.io/explorer/asset/wax-mainnet/{item.asset_id}>)'
+                f"[#{item.asset_id}](<https://wax.atomichub.io/explorer/asset/wax-mainnet/{item.asset_id}>)"
                 for item in assets
             ]
         )
@@ -1051,10 +1052,11 @@ async def send_and_announce_drop(
     reason: str,
     collection: str = DEFAULT_WAX_COLLECTION,
     wax_con=None,
-    num: int = 1
+    num: int = 1,
 ) -> list[int]:
     """Sends and announces a drop for the specified collection.
-    If the user has a linked wallet, sends the NFT directly to that wallet, otherwise uses a claimlink"""
+    If the user has a linked wallet, sends the NFT directly to that wallet, otherwise uses a claimlink
+    """
     if wax_con is None:
         wax_con = bot_.wax_con
 
@@ -1069,18 +1071,27 @@ async def send_and_announce_drop(
             f"please let Vyryn know. Details: {link}"
         )
 
-        memo = wax_con.get_memo(user=str(member)[:50], memo=reason, collection=collection)
+        memo = wax_con.get_memo(
+            user=str(member)[:50], memo=reason, collection=collection
+        )
         claim_id = await announce_and_send_link(bot_, link, member, memo)
 
         bot_.log(f"Announced and sent link {claim_id}", "DBUG")
         return [claim_id]
 
     else:
-        memo = wax_con.get_memo(user=str(member)[:50], memo=reason, collection=collection)
-        selected_assets = await wax_con.get_random_assets_to_send(user=str(member), num=num, collection=collection)
+        memo = wax_con.get_memo(
+            user=str(member)[:50], memo=reason, collection=collection
+        )
+        selected_assets = await wax_con.get_random_assets_to_send(
+            user=str(member), num=num, collection=collection
+        )
         selected_asset_ids = [asset.asset_id for asset in selected_assets]
         await wax_con.transfer_assets(
-            receiver=linked_wallet, asset_ids=selected_asset_ids, sender_ac=collection, memo=memo
+            receiver=linked_wallet,
+            asset_ids=selected_asset_ids,
+            sender_ac=collection,
+            memo=memo,
         )
         bot_.log(f"Directly sent assets to user's wallet {selected_asset_ids}", "DBUG")
         await announce_drop(bot_, linked_wallet, selected_assets, member, memo, num=num)
@@ -1171,7 +1182,12 @@ async def send_link_start_to_finish(
         await message.add_reaction("⌛")
 
         claim_ids = await send_and_announce_drop(
-            bot_=bot_, member=member, reason=reason, collection=collection, wax_con=wax_con, num=num
+            bot_=bot_,
+            member=member,
+            reason=reason,
+            collection=collection,
+            wax_con=wax_con,
+            num=num,
         )
 
         if authd < 2:
