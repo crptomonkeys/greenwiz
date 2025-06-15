@@ -54,6 +54,7 @@ from utils.settings import (
     WAX_CACHE_TIME,
 )
 from utils.util import WaxNFT, load_json_var, log, today, usage_react, write_json_var
+
 from wax_chain.collection_config import determine_collection, get_collection_info
 from wax_chain.wax_contracts import atomicassets, atomictoolsx, monkeysmatch
 from wax_chain.wax_contracts.monkeysmatch import gen_salt
@@ -677,6 +678,15 @@ class WaxConnection:
                         )
                         self.remove_all_from_history_rpc(selected.URL)
                         cycles = 0
+            except (JSONDecodeError, aiohttp.ClientConnectorError, AttributeError) as e:
+                text = resp.text if hasattr(resp, "text") else "[No response text]"
+                self.log(
+                    f"{selected.URL} returned a {type(e)} invalid response {e}:: {text}, so removing them "
+                    f"from my queries.",
+                    "WARN",
+                )
+                self.remove_all_from_history_rpc(selected.URL)
+                cycles = 0
             except (
                 aiohttp.ContentTypeError,
                 IndexError,
@@ -690,15 +700,6 @@ class WaxConnection:
                     f"{type(e)}::{e} for tx_id {tx_id} from {selected.URL}. Continuing..."
                 )
                 self.update_weighted_history_rpc(selected)
-            except (JSONDecodeError, aiohttp.ClientConnectorError) as e:
-                text = resp.text if hasattr(resp, "text") else "[No response text]"
-                self.log(
-                    f"{selected.URL} returned a {type(e)} invalid response {e}:: {text}, so removing them "
-                    f"from my queries.",
-                    "WARN",
-                )
-                self.remove_all_from_history_rpc(selected.URL)
-                cycles = 0
             cycles += 1
 
         self.update_weighted_history_rpc(selected)
