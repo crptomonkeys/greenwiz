@@ -22,151 +22,169 @@ import hashlib
 import traceback
 from json import JSONDecodeError, dumps
 from time import time
-from typing import List, Union, Optional, Any
+from typing import Any, List, Optional, Union
 
 import aiohttp
 import discord
 from aioeosabi import (
-    EosTransaction,
-    EosKey,
-    EosJsonRpc,
-    EosAction,
-    serializer,
     EosAccount,
+    EosAction,
+    EosJsonRpc,
+    EosKey,
+    EosTransaction,
+    serializer,
 )
 from aioeosabi.contracts import eosio_token
 from aioeosabi.exceptions import EosAssertMessageException, EosRpcException
 from aioeosabi.rpc import ERROR_NAME_MAP
-from aiohttp import ServerDisconnectedError, ClientConnectorError, ClientOSError
+from aiohttp import ClientConnectorError, ClientOSError, ServerDisconnectedError
 from discord import Forbidden, HTTPException
-
 from utils.exceptions import (
+    InvalidInput,
     InvalidResponse,
     UnableToCompleteRequestedAction,
-    InvalidInput,
 )
 from utils.settings import (
     DEFAULT_WAX_COLLECTION,
-    MONKEYMATCH_PRIV_KEY,
-    MONKEYMATCH_ACC_NAME,
-    WAX_CACHE_TIME,
-    TIP_ACC_PERMISSION,
-    SALT_ACC_PERMISSION,
     MINT_ACC_PERMISSION,
+    MONKEYMATCH_ACC_NAME,
+    MONKEYMATCH_PRIV_KEY,
+    SALT_ACC_PERMISSION,
+    TIP_ACC_PERMISSION,
+    WAX_CACHE_TIME,
 )
-from utils.util import load_json_var, log, today, write_json_var, usage_react, WaxNFT
-from wax_chain.collection_config import get_collection_info, determine_collection
-from wax_chain.wax_contracts import atomictoolsx, atomicassets, monkeysmatch
+from utils.util import WaxNFT, load_json_var, log, today, usage_react, write_json_var
+
+from wax_chain.collection_config import determine_collection, get_collection_info
+from wax_chain.wax_contracts import atomicassets, atomictoolsx, monkeysmatch
 from wax_chain.wax_contracts.monkeysmatch import gen_salt
 from wax_chain.wax_market_utils import (
     atomic_api,
-    get_owners,
+    fair_est,
     get_geometric_regressed_sale_price,
     get_lowest_current_offer,
-    fair_est,
+    get_owners,
 )
 
 wax_history_api = "/v2/history/get_transaction"
+# 'https://wax.eu.eosamsterdam.net/', 'https://api.wax.liquidstudios.io/', 'https://api.wax.bountyblok.io/'
 full_api_weighted_list = [
+    {"node_url": "https://wax.eu.eosamsterdam.net", "type": "api", "weight": 10},
     {"node_url": "https://wax.blacklusion.io", "type": "api", "weight": 10},
+    {"node_url": "https://wax.dapplica.io", "type": "api", "weight": 10},
+    {"node_url": "https://api-wax.eosauthority.com", "type": "api", "weight": 10},
+    {"node_url": "https://api.wax.greeneosio.com", "type": "api", "weight": 10},
     {"node_url": "https://waxapi.ledgerwise.io", "type": "api", "weight": 10},
-    {"node_url": "https://api.wax.liquidstudios.io", "type": "api", "weight": 10},
     {"node_url": "https://wax.pink.gg", "type": "api", "weight": 10},
     {"node_url": "https://wax.greymass.com", "type": "api", "weight": 10},
-    {"node_url": "https://wax.eosdublin.io", "type": "api", "weight": 10},
-    {"node_url": "https://atomic.tokengamer.io", "type": "atomic", "weight": 10},
-    {"node_url": "https://wax.eosdac.io", "type": "api", "weight": 10},
-    {"node_url": "https://wax.eu.eosamsterdam.net", "type": "api", "weight": 9},
-    {"node_url": "https://wax.dapplica.io", "type": "api", "weight": 9},
+    {"node_url": "https://atomic.ledgerwise.io", "type": "atomic", "weight": 10},
+    {"node_url": "https://apiwax.3dkrender.com", "type": "api", "weight": 10},
+    {"node_url": "https://eu.wax.eosrio.io", "type": "api", "weight": 10},
+    {"node_url": "https://wax.eu.eosamsterdam.net", "type": "history", "weight": 9},
+    {"node_url": "https://wax.cryptolions.io", "type": "api", "weight": 9},
+    {"node_url": "https://wax.dapplica.io", "type": "history", "weight": 9},
+    {"node_url": "https://wax.dapplica.io", "type": "hyperion", "weight": 9},
     {"node_url": "https://api-wax.eosarabia.net", "type": "api", "weight": 9},
     {"node_url": "https://api-wax.eosauthority.com", "type": "history", "weight": 9},
-    {"node_url": "https://api-wax.eosauthority.com", "type": "api", "weight": 9},
     {"node_url": "https://api-wax.eosauthority.com", "type": "hyperion", "weight": 9},
     {"node_url": "https://api.wax.greeneosio.com", "type": "history", "weight": 9},
-    {"node_url": "https://api.wax.greeneosio.com", "type": "api", "weight": 9},
     {"node_url": "https://waxapi.ledgerwise.io", "type": "history", "weight": 9},
     {"node_url": "https://waxapi.ledgerwise.io", "type": "hyperion", "weight": 9},
-    {"node_url": "https://api.wax.liquidstudios.io", "type": "history", "weight": 9},
     {"node_url": "https://wax.greymass.com", "type": "history", "weight": 9},
     {"node_url": "https://api.waxsweden.org", "type": "history", "weight": 9},
     {"node_url": "https://api.waxsweden.org", "type": "api", "weight": 9},
-    {"node_url": "https://api-wax-aa.eosarabia.net", "type": "atomic", "weight": 9},
-    {"node_url": "https://wax.eosdublin.io", "type": "hyperion", "weight": 9},
+    {"node_url": "https://wax.eosdublin.io", "type": "history", "weight": 9},
+    {"node_url": "https://wax.eosdublin.io", "type": "api", "weight": 9},
+    {"node_url": "https://api.waxeastern.cn", "type": "history", "weight": 9},
     {"node_url": "https://api.waxeastern.cn", "type": "api", "weight": 9},
-    {"node_url": "https://atomic.ledgerwise.io", "type": "atomic", "weight": 9},
-    {"node_url": "https://api.hivebp.io", "type": "api", "weight": 9},
-    {"node_url": "https://apiwax.3dkrender.com", "type": "api", "weight": 9},
+    {"node_url": "https://wax-atomic.eosiomadrid.io", "type": "atomic", "weight": 9},
+    {"node_url": "https://aa.dapplica.io", "type": "atomic", "weight": 9},
+    {"node_url": "https://wax.eosdac.io", "type": "api", "weight": 9},
+    {"node_url": "https://wax-public.neftyblocks.com", "type": "api", "weight": 9},
     {"node_url": "https://atomic-wax-mainnet.wecan.dev", "type": "atomic", "weight": 9},
+    {"node_url": "https://wax.defibox.xyz", "type": "api", "weight": 9},
     {"node_url": "https://wax.blokcrafters.io", "type": "api", "weight": 8},
-    {"node_url": "https://wax.cryptolions.io", "type": "api", "weight": 8},
-    {"node_url": "https://api-wax.eosarabia.net", "type": "history", "weight": 8},
+    {"node_url": "https://wax.cryptolions.io", "type": "history", "weight": 8},
+    {"node_url": "https://wax.cryptolions.io", "type": "hyperion", "weight": 8},
     {"node_url": "https://wax.eosphere.io", "type": "history", "weight": 8},
     {"node_url": "https://wax.eosphere.io", "type": "api", "weight": 8},
     {"node_url": "https://api.wax.greeneosio.com", "type": "hyperion", "weight": 8},
-    {"node_url": "https://api.wax.liquidstudios.io", "type": "hyperion", "weight": 8},
-    {"node_url": "https://wax.eosn.io", "type": "api", "weight": 8},
     {"node_url": "https://api.waxsweden.org", "type": "hyperion", "weight": 8},
-    {"node_url": "https://aa.wax.blacklusion.io", "type": "atomic", "weight": 8},
+    {"node_url": "https://api-wax-aa.eosarabia.net", "type": "atomic", "weight": 8},
     {"node_url": "https://aa-api-wax.eosauthority.com", "type": "atomic", "weight": 8},
-    {"node_url": "https://api.atomic.greeneosio.com", "type": "atomic", "weight": 8},
     {"node_url": "https://wax.api.atomicassets.io", "type": "atomic", "weight": 8},
-    {"node_url": "https://api.wax.eosdetroit.io", "type": "history", "weight": 8},
-    {"node_url": "https://api.wax.eosdetroit.io", "type": "api", "weight": 8},
-    {"node_url": "https://atomic.hivebp.io", "type": "atomic", "weight": 8},
+    {"node_url": "https://wax.eosdublin.io", "type": "hyperion", "weight": 8},
+    {"node_url": "https://api.waxeastern.cn", "type": "hyperion", "weight": 8},
     {"node_url": "https://wax-bp.wizardsguild.one", "type": "api", "weight": 8},
-    {"node_url": "https://wax-atomic.eosiomadrid.io", "type": "atomic", "weight": 8},
-    {"node_url": "https://aa.dapplica.io", "type": "atomic", "weight": 8},
-    {"node_url": "https://wax-public.neftyblocks.com", "type": "api", "weight": 8},
+    {"node_url": "https://wax.eosdac.io", "type": "history", "weight": 8},
+    {"node_url": "https://wax.eosdac.io", "type": "hyperion", "weight": 8},
+    {"node_url": "https://wax.defibox.xyz", "type": "history", "weight": 8},
+    {"node_url": "https://wax-aa.eosdac.io", "type": "atomic", "weight": 8},
+    {
+        "node_url": "https://atomic-api.wax.cryptolions.io",
+        "type": "atomic",
+        "weight": 8,
+    },
+    {"node_url": "https://wax.eosusa.io", "type": "history", "weight": 8},
+    {"node_url": "https://wax.eosusa.io", "type": "api", "weight": 8},
     {"node_url": "https://api.wax.alohaeos.com", "type": "history", "weight": 7},
     {"node_url": "https://api.wax.alohaeos.com", "type": "api", "weight": 7},
     {"node_url": "https://api.wax.alohaeos.com", "type": "hyperion", "weight": 7},
-    {"node_url": "https://wax.eu.eosamsterdam.net", "type": "history", "weight": 7},
     {"node_url": "https://wax.eu.eosamsterdam.net", "type": "hyperion", "weight": 7},
     {"node_url": "https://wax.blacklusion.io", "type": "history", "weight": 7},
     {"node_url": "https://wax.blacklusion.io", "type": "hyperion", "weight": 7},
     {"node_url": "https://wax.blokcrafters.io", "type": "history", "weight": 7},
     {"node_url": "https://wax.blokcrafters.io", "type": "hyperion", "weight": 7},
-    {"node_url": "https://wax.dapplica.io", "type": "history", "weight": 7},
-    {"node_url": "https://wax.dapplica.io", "type": "hyperion", "weight": 7},
+    {"node_url": "https://api-wax.eosarabia.net", "type": "history", "weight": 7},
     {"node_url": "https://api-wax.eosarabia.net", "type": "hyperion", "weight": 7},
-    {"node_url": "https://wax.eoseoul.io", "type": "api", "weight": 7},
     {"node_url": "https://wax.eosphere.io", "type": "hyperion", "weight": 7},
+    {"node_url": "https://api.wax.liquidstudios.io", "type": "hyperion", "weight": 7},
     {"node_url": "https://wax-aa.eu.eosamsterdam.net", "type": "atomic", "weight": 7},
+    {"node_url": "https://aa.wax.blacklusion.io", "type": "atomic", "weight": 7},
     {"node_url": "https://wax.blokcrafters.io", "type": "atomic", "weight": 7},
-    {"node_url": "https://api.wax-aa.bountyblok.io", "type": "atomic", "weight": 7},
     {"node_url": "https://wax-atomic-api.eosphere.io", "type": "atomic", "weight": 7},
-    {"node_url": "https://api.wax.liquidstudios.io", "type": "atomic", "weight": 7},
     {"node_url": "https://wax-atomic.wizardsguild.one", "type": "atomic", "weight": 7},
     {"node_url": "https://atomic.3dkrender.com", "type": "atomic", "weight": 7},
-    {"node_url": "https://api.waxeastern.cn", "type": "history", "weight": 7},
-    {"node_url": "https://api.waxeastern.cn", "type": "hyperion", "weight": 7},
+    {"node_url": "https://atomic.hivebp.io", "type": "atomic", "weight": 7},
+    {"node_url": "https://api.hivebp.io", "type": "api", "weight": 7},
     {"node_url": "https://apiwax.3dkrender.com", "type": "history", "weight": 7},
     {"node_url": "https://apiwax.3dkrender.com", "type": "hyperion", "weight": 7},
     {"node_url": "https://atomic.wax.eosrio.io", "type": "atomic", "weight": 7},
-    {"node_url": "https://wax.hkeos.com/aa", "type": "atomic", "weight": 7},
-    {"node_url": "https://atomic.wax.eosdetroit.io", "type": "atomic", "weight": 7},
-    {"node_url": "https://wax-aa.eosdublin.io", "type": "atomic", "weight": 5},
-    {"node_url": "https://wax.cryptolions.io", "type": "history", "weight": 0},
-    {"node_url": "https://wax.cryptolions.io", "type": "hyperion", "weight": 0},
+    {"node_url": "https://wax.defibox.xyz", "type": "hyperion", "weight": 7},
+    {"node_url": "https://wax.eosusa.io", "type": "atomic", "weight": 7},
+    {"node_url": "https://eu.wax.eosrio.io", "type": "hyperion", "weight": 7},
+    {"node_url": "https://wax.eosusa.io", "type": "hyperion", "weight": 7},
+    {"node_url": "https://atomic-wax.tacocrypto.io", "type": "atomic", "weight": 7},
     {"node_url": "https://wax.csx.io", "type": "history", "weight": 0},
     {"node_url": "https://wax.csx.io", "type": "api", "weight": 0},
     {"node_url": "https://wax.csx.io", "type": "hyperion", "weight": 0},
     {"node_url": "https://wax.eoseoul.io", "type": "history", "weight": 0},
+    {"node_url": "https://wax.eoseoul.io", "type": "api", "weight": 0},
     {"node_url": "https://wax.eoseoul.io", "type": "hyperion", "weight": 0},
+    {"node_url": "https://api.wax.liquidstudios.io", "type": "history", "weight": 0},
+    {"node_url": "https://api.wax.liquidstudios.io", "type": "api", "weight": 0},
     {"node_url": "https://wax.eosn.io", "type": "history", "weight": 0},
+    {"node_url": "https://wax.eosn.io", "type": "api", "weight": 0},
     {"node_url": "https://wax.eosn.io", "type": "hyperion", "weight": 0},
     {"node_url": "https://wax.pink.gg", "type": "history", "weight": 0},
     {"node_url": "https://wax.pink.gg", "type": "hyperion", "weight": 0},
     {"node_url": "https://wax.greymass.com", "type": "hyperion", "weight": 0},
-    {"node_url": "https://wax.eosdublin.io", "type": "history", "weight": 0},
+    {"node_url": "https://api.wax-aa.bountyblok.io", "type": "atomic", "weight": 0},
+    {"node_url": "https://api.atomic.greeneosio.com", "type": "atomic", "weight": 0},
+    {"node_url": "https://api.wax.liquidstudios.io", "type": "atomic", "weight": 0},
+    {"node_url": "https://api.wax.eosdetroit.io", "type": "history", "weight": 0},
+    {"node_url": "https://api.wax.eosdetroit.io", "type": "api", "weight": 0},
     {"node_url": "https://api.wax.eosdetroit.io", "type": "hyperion", "weight": 0},
     {"node_url": "https://api.hivebp.io", "type": "history", "weight": 0},
     {"node_url": "https://api.hivebp.io", "type": "hyperion", "weight": 0},
+    {"node_url": "https://wax-aa.eosdublin.io", "type": "atomic", "weight": 0},
     {"node_url": "https://api.wax.mainnet.wecan.dev", "type": "history", "weight": 0},
     {"node_url": "https://api.wax.mainnet.wecan.dev", "type": "api", "weight": 0},
     {"node_url": "https://api.wax.mainnet.wecan.dev", "type": "hyperion", "weight": 0},
     {"node_url": "https://wax-bp.wizardsguild.one", "type": "history", "weight": 0},
     {"node_url": "https://wax-bp.wizardsguild.one", "type": "hyperion", "weight": 0},
+    {"node_url": "https://wax.hkeos.com/aa", "type": "atomic", "weight": 0},
+    {"node_url": "https://atomic.tokengamer.io", "type": "atomic", "weight": 0},
     {"node_url": "https://wax-hyperion.eosiomadrid.io", "type": "history", "weight": 0},
     {"node_url": "https://wax-hyperion.eosiomadrid.io", "type": "api", "weight": 0},
     {
@@ -174,8 +192,6 @@ full_api_weighted_list = [
         "type": "hyperion",
         "weight": 0,
     },
-    {"node_url": "https://wax.eosdac.io", "type": "history", "weight": 0},
-    {"node_url": "https://wax.eosdac.io", "type": "hyperion", "weight": 0},
     {"node_url": "https://wax-public.neftyblocks.com", "type": "history", "weight": 0},
     {"node_url": "https://wax-public.neftyblocks.com", "type": "hyperion", "weight": 0},
     {
@@ -183,6 +199,8 @@ full_api_weighted_list = [
         "type": "atomic",
         "weight": 0,
     },
+    {"node_url": "https://atomic.wax.eosdetroit.io", "type": "atomic", "weight": 0},
+    {"node_url": "https://eu.wax.eosrio.io", "type": "history", "weight": 0},
 ]
 
 wax_dict: dict[str, dict[int, dict[str, str]]] = {}
@@ -341,8 +359,11 @@ class WaxConnection:
         context_free_bytes: bytes = bytes(32),
         sender_ac: str = DEFAULT_WAX_COLLECTION,
     ) -> dict[str, Any]:
-        """Attempts to sign and push a transaction to one API. Failing that, it goes to another all the way down the
-        list. Pass a list of EosActions or a single EosAction."""
+        """
+        Attempts to sign and push a transaction to one of several API endpoints.
+        Uses a first non-exception result approach so that the first successful broadcast is returned,
+        while other pending tasks are cancelled.
+        """
         # Convert to list if it isn't one already
         if not isinstance(actions, list):
             actions = [actions]
@@ -409,79 +430,93 @@ class WaxConnection:
                 f"Failed to get head block from {failed_rpcs} but eventually got {block} from {suc}."
             )
 
+        # Create the transaction using the block parameters
         transaction = EosTransaction(
             ref_block_num=block["block_num"] & 65535,
             ref_block_prefix=block["ref_block_prefix"],
             actions=actions,
         )
 
-        # Serialize transaction just once for all APIs so it will be idempotent, very important if  sending to
-        # several nodes.
+        # Serialize the transaction once for idempotence
         bytes_serialized_transaction: bytes = serializer.serialize(transaction)
-
         digest = hashlib.sha256(
             b"".join((chain_id, bytes_serialized_transaction, context_free_bytes))
         ).digest()
         signatures = [self.wax_ac[sender_ac].key.sign(digest)]
         serialized_transaction = binascii.hexlify(bytes_serialized_transaction).decode()
         self.log(f"Serialized transaction {transaction}, creating broadcast tasks.")
-        loop = asyncio.get_event_loop()
-        future = loop.create_future()  # for the callback upon success
+
         # Send the transaction to all connected nodes simultaneously.
         tasks = [
-            asyncio.create_task(
-                self.tx(future, rpc, signatures, serialized_transaction)
-            )
+            asyncio.create_task(self.tx(rpc, signatures, serialized_transaction))
             for rpc in self.api_rpc
         ]
 
-        # Add a timeout so this doesn't hang indefinitely if no APIs are working
-        async def timeout(fut: asyncio.Future[Optional[Any]], length: int) -> None:
-            await asyncio.sleep(length)
-            fut.set_result(None)
+        async def get_first_non_exception_result(
+            tasks: List[asyncio.Task], timeout: int = 60
+        ) -> Any:
+            """
+            Awaits the first task to successfully complete without raising an exception
 
-        tasks.append(asyncio.create_task(timeout(future, 10)))
+            """
+            try:
+                for completed_task in asyncio.as_completed(tasks, timeout=timeout):
+                    try:
+                        result = await completed_task
+                        return result
+                    except Exception as exc:
+                        self.log(f"In wax execute, task failed with error: {exc}")
+                        continue
+                # If we get here, none of the tasks succeeded
+                self.log(
+                    "Failed to broadcast a wax transaction; all my connected endpoints appear to be down."
+                )
+                raise InvalidWaxCardSend(
+                    "Hmm, all the APIs I am connected to seem to be down or unhappy with me at the moment. "
+                    "Try again later."
+                )
+            except asyncio.TimeoutError:
+                self.log("Failed to broadcast a wax transaction; timeout reached.")
+                raise InvalidWaxCardSend(
+                    "Timed out waiting for a valid result from any node. Try again later."
+                )
+            finally:
+                # Cancel any tasks that haven't completed
+                for task in tasks:
+                    task.cancel()
 
-        try:
-            res = await future
-            result: dict[str, Any] = future.result()
-        finally:
-            self.log("Cancelling remaining tasks")
-            for task in tasks:
-                task.cancel()
-
-        if not res:
-            self.log(
-                "Timed out attempting to broadcast a transaction; all my connected endpoints appear to be down."
-            )
-            raise InvalidWaxCardSend(
-                "Hmm, all the APIs I am connected to seem to be down at the moment."
-            )
-
+        # Wait for the first non-exception result
+        result = await get_first_non_exception_result(tasks, timeout=60)
         self.log(f"Result is: {result}")
         return result
 
     async def tx(
         self,
-        fut: asyncio.Future[Optional[dict[str, Any]]],
         rpc: EosJsonRpcWrapper,
-        signatures: list[str],
+        signatures: List[str],
         serialized_transaction: str,
-    ) -> None:
-        """Does a single transaction push to a single EosJsonRpcWrapper object, if it is successful sets the
-        callback future."""
+    ) -> dict[str, Any]:
+        """
+        Does a single transaction push to a single EosJsonRpcWrapper object, if it is successful sets the
+        callback future.
+        """
         try:
             tx_resp: dict[str, Any] = await rpc.push_transaction(
                 signatures=signatures, serialized_transaction=serialized_transaction
             )
         except EosAssertMessageException as e:
             self.log(f"Received an EosAssertMessageException: {e}")
-            fut.set_exception(e)
+            raise
         else:
             content = dumps(tx_resp).replace("\\", "")
             if "authorization" in content and "block_num" in content:
                 self.log(f"I think {content} is a valid tx.")
-                fut.set_result(tx_resp)
+                return tx_resp
+            else:
+                self.log(f"Transaction response invalid: {content}")
+                raise ValueError(
+                    "Transaction response does not contain expected fields."
+                )
 
     async def transfer_funds(
         self,
@@ -643,6 +678,15 @@ class WaxConnection:
                         )
                         self.remove_all_from_history_rpc(selected.URL)
                         cycles = 0
+            except (JSONDecodeError, aiohttp.ClientConnectorError, AttributeError) as e:
+                text = resp.text if hasattr(resp, "text") else "[No response text]"
+                self.log(
+                    f"{selected.URL} returned a {type(e)} invalid response {e}:: {text}, so removing them "
+                    f"from my queries.",
+                    "WARN",
+                )
+                self.remove_all_from_history_rpc(selected.URL)
+                cycles = 0
             except (
                 aiohttp.ContentTypeError,
                 IndexError,
@@ -656,15 +700,6 @@ class WaxConnection:
                     f"{type(e)}::{e} for tx_id {tx_id} from {selected.URL}. Continuing..."
                 )
                 self.update_weighted_history_rpc(selected)
-            except (JSONDecodeError, aiohttp.ClientConnectorError) as e:
-                text = resp.text if hasattr(resp, "text") else "[No response text]"
-                self.log(
-                    f"{selected.URL} returned a {type(e)} invalid response {e}:: {text}, so removing them "
-                    f"from my queries.",
-                    "WARN",
-                )
-                self.remove_all_from_history_rpc(selected.URL)
-                cycles = 0
             cycles += 1
 
         self.update_weighted_history_rpc(selected)
@@ -808,7 +843,7 @@ class WaxConnection:
     def get_memo(
         self, user: str, memo: str = "", collection: str = DEFAULT_WAX_COLLECTION
     ) -> str:
-        """ Helper function that creates a valid memo to use for a drop """
+        """Helper function that creates a valid memo to use for a drop"""
         if memo == "":
             f"Random {collection} reward for ({user})."
         else:
@@ -947,8 +982,9 @@ async def announce_drop(
     if num >= 5:
         to_send += "Note that only links for the first 5 are included, check out the rest in your profile!"
     channel = bot.get_guild(cinfo.guild).get_channel(cinfo.announce_ch)
-    to_send += (
-        "\n".join(f"<https://wax.atomichub.io/explorer/asset/wax-mainnet/{asset.asset_id}>" for asset in assets[:5])
+    to_send += "\n".join(
+        f"<https://wax.atomichub.io/explorer/asset/wax-mainnet/{asset.asset_id}>"
+        for asset in assets[:5]
     )
     to_send += (
         f"\nAvoid scams: before clicking the link, ensure the top level domain is **atomichub.io**\n"
@@ -969,9 +1005,9 @@ async def announce_drop(
         to_announce = f"{cinfo.emoji} **{memo} Giveaway**"
         if user.guild is not None:
             to_announce += f" *(in {user.guild})*"
-        assets_string = ' '.join(
+        assets_string = " ".join(
             [
-                f'[#{item.asset_id}](<https://wax.atomichub.io/explorer/asset/wax-mainnet/{item.asset_id}>)'
+                f"[#{item.asset_id}](<https://wax.atomichub.io/explorer/asset/wax-mainnet/{item.asset_id}>)"
                 for item in assets
             ]
         )
@@ -1051,10 +1087,11 @@ async def send_and_announce_drop(
     reason: str,
     collection: str = DEFAULT_WAX_COLLECTION,
     wax_con=None,
-    num: int = 1
+    num: int = 1,
 ) -> list[int]:
     """Sends and announces a drop for the specified collection.
-    If the user has a linked wallet, sends the NFT directly to that wallet, otherwise uses a claimlink"""
+    If the user has a linked wallet, sends the NFT directly to that wallet, otherwise uses a claimlink
+    """
     if wax_con is None:
         wax_con = bot_.wax_con
 
@@ -1069,18 +1106,27 @@ async def send_and_announce_drop(
             f"please let Vyryn know. Details: {link}"
         )
 
-        memo = wax_con.get_memo(user=str(member)[:50], memo=reason, collection=collection)
+        memo = wax_con.get_memo(
+            user=str(member)[:50], memo=reason, collection=collection
+        )
         claim_id = await announce_and_send_link(bot_, link, member, memo)
 
         bot_.log(f"Announced and sent link {claim_id}", "DBUG")
         return [claim_id]
 
     else:
-        memo = wax_con.get_memo(user=str(member)[:50], memo=reason, collection=collection)
-        selected_assets = await wax_con.get_random_assets_to_send(user=str(member), num=num, collection=collection)
+        memo = wax_con.get_memo(
+            user=str(member)[:50], memo=reason, collection=collection
+        )
+        selected_assets = await wax_con.get_random_assets_to_send(
+            user=str(member), num=num, collection=collection
+        )
         selected_asset_ids = [asset.asset_id for asset in selected_assets]
         await wax_con.transfer_assets(
-            receiver=linked_wallet, asset_ids=selected_asset_ids, sender_ac=collection, memo=memo
+            receiver=linked_wallet,
+            asset_ids=selected_asset_ids,
+            sender_ac=collection,
+            memo=memo,
         )
         bot_.log(f"Directly sent assets to user's wallet {selected_asset_ids}", "DBUG")
         await announce_drop(bot_, linked_wallet, selected_assets, member, memo, num=num)
@@ -1171,7 +1217,12 @@ async def send_link_start_to_finish(
         await message.add_reaction("⌛")
 
         claim_ids = await send_and_announce_drop(
-            bot_=bot_, member=member, reason=reason, collection=collection, wax_con=wax_con, num=num
+            bot_=bot_,
+            member=member,
+            reason=reason,
+            collection=collection,
+            wax_con=wax_con,
+            num=num,
         )
 
         if authd < 2:
