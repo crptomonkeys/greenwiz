@@ -84,7 +84,7 @@ CRYPTOMONKEY_DROP_ADMINS = [
 ]
 
 # Channel or thread in which wallet link activity is logged.
-WALLETLINK_LOG_CHANNEL = 1317157811297452123
+WALLETLINK_LOG_CHANNEL = 773125535240290305
 
 # ============= Defaults for Per-Server Settings ====================
 # The default prefix the bot should respond to, in addition to mentions.
