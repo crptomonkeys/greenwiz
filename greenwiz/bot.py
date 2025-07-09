@@ -1,24 +1,22 @@
 """
 Bot object.
 """
+
 import asyncio
 import datetime
 import logging
 import os
 import pathlib
-import traceback
 import sys
+import traceback
 from collections import Counter, defaultdict
-from typing import Union, Any, Awaitable
+from typing import Any, Awaitable, Union
 
 import aiohttp
-from redis import asyncio as aioredis
 import discord
 from discord.ext import commands
-
-from utils import settings, util
-
-from utils import error_handler
+from redis import asyncio as aioredis
+from utils import error_handler, settings, util
 from utils.storage import StorageManager
 
 
@@ -28,11 +26,9 @@ class Bot(commands.Bot):
 
     def __init__(self):
         # To be initialized async with startup
-        self.owner_id, self.appinfo, self.debug_mode, = (
-            None,
-            None,
-            set(),
-        )
+        self.owner_id = None
+        self.appinfo = None
+        self.debug_mode = set()
         self._tasks: list[asyncio.Task[None]] = []
         self.logging_status: list[str] = []
         self.storage: dict[Union[int, None, discord.Guild], StorageManager] = {}
@@ -103,7 +99,9 @@ class Bot(commands.Bot):
         #  directly.
         self.storage[None] = StorageManager(self)
 
-        self.logging_status = list((await self.redis.hgetall("settings:logging_status")).keys())
+        self.logging_status = list(
+            (await self.redis.hgetall("settings:logging_status")).keys()
+        )
         if self.logging_status is None or len(self.logging_status) == 0:
             self.logging_status = self.settings.DONT_LOG
 
@@ -223,8 +221,10 @@ class Bot(commands.Bot):
             return
         try:
             channel = self.get_channel(877782340741505044)
-            if channel and not (isinstance(channel, discord.ForumChannel)
-                                or isinstance(channel, discord.CategoryChannel)):
+            if channel and not (
+                isinstance(channel, discord.ForumChannel)
+                or isinstance(channel, discord.CategoryChannel)
+            ):
                 task = channel.send(f"[{severity}] {message}"[:1995])  # type: ignore[union-attr]
                 asyncio.create_task(task)
         except (discord.HTTPException, discord.Forbidden, ValueError, TypeError):
@@ -284,7 +284,8 @@ class Bot(commands.Bot):
         self, ctx: commands.Context[Any], message: str, delete: bool = True
     ) -> None:
         """React with an x and send the user an explanatory failure message. Should anything fail,
-        log at the debug level but otherwise fail silently. Delete own response after 30 seconds."""
+        log at the debug level but otherwise fail silently. Delete own response after 30 seconds.
+        """
         resp = f"{ctx.author.name}, {message}"
         await self.quiet_x(ctx)
         if delete:

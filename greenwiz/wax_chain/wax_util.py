@@ -267,6 +267,30 @@ class NoCardsException(UnableToCompleteRequestedAction):
     pass
 
 
+class Claimlink:
+    link_id: str
+    priv_key: str
+
+    def __init__(self, link_id: str, priv_key: str) -> None:
+        self.link_id = link_id
+        self.priv_key = priv_key
+
+    @property
+    def ah(self) -> str:
+        return f"https://wax.atomichub.io/trading/link/wax-mainnet/{self.link_id}?key={self.priv_key}"
+
+    @property
+    def nefty(self) -> str:
+        return f"https://neftyblocks.com/links/{self.link_id}?key={self.priv_key}"
+
+    @property
+    def public(self) -> str:
+        return f"https://wax.atomichub.io/trading/link/wax-mainnet/{self.link_id}"
+
+    def __repr__(self) -> str:
+        return self.nefty
+
+
 class EosJsonRpcWrapper(EosJsonRpc):
     """Wrapper class for EosJsonRpc to reuse an aiohttp session which is good practice."""
 
@@ -762,7 +786,7 @@ class WaxConnection:
         memo=None,
         wait_for_confirmation=True,
         collection: str = DEFAULT_WAX_COLLECTION,
-    ) -> str:
+    ) -> Claimlink:
         """Creates and returns a claimlink for the specified asset ids."""
         if not memo:
             memo = "NFT Tip Bot reward claimlink."
@@ -804,8 +828,7 @@ class WaxConnection:
             link_id = str(result).split("link_id': ")[1].split(",")[0]
             link_id = link_id[1:].split("'")[0]
 
-        link = f"https://wax.atomichub.io/trading/link/wax-mainnet/{link_id}?key={priv_key}"
-        return link
+        return Claimlink(link_id, priv_key)
 
     async def get_random_assets_to_send(
         self, user: str, num=1, collection: str = DEFAULT_WAX_COLLECTION
@@ -861,12 +884,12 @@ class WaxConnection:
 
     async def get_random_claim_link(
         self, user: str, memo="", num=1, collection: str = DEFAULT_WAX_COLLECTION
-    ) -> str:
+    ) -> Claimlink:
         memo = self.get_memo(user, memo, collection)
         # Choose an asset and make a claim link.
         selected_assets = await self.get_random_assets_to_send(user, num, collection)
         selected_asset_ids = [asset.asset_id for asset in selected_assets]
-        link = await self.create_claimlink(
+        link: Claimlink = await self.create_claimlink(
             selected_asset_ids, memo=memo, collection=collection
         )
         return link
@@ -969,7 +992,9 @@ async def announce_drop(
     if num == 1:
         nft_info = " NFT."
         if assets[0].ipfs_hash != "":
-            nft_info = f" [NFT](https://atomichub-ipfs.com/ipfs/{assets[0].ipfs_hash})."
+            nft_info = (
+                f" [NFT](https://ipfs.neftyblocks.io/ipfs/{assets[0].ipfs_hash})."
+            )
         to_send = (
             f"Congratulations! You have won a random {cinfo.name} {nft_info}"
             f" It's been sent directly to your linked wallet {wallet}, you can see it with the following link\n"
@@ -1024,7 +1049,7 @@ async def announce_drop(
 
 async def announce_and_send_link(
     bot,
-    link: str,
+    link: Claimlink,
     user: discord.Member,
     memo: str,
     num: int = 1,
@@ -1043,8 +1068,9 @@ async def announce_and_send_link(
     channel = bot.get_guild(cinfo.guild).get_channel(cinfo.announce_ch)
     to_send += (
         f" at the following link (just login with your wax_chain wallet, might require allowing"
-        f" popups):\n{link}\nWARNING: Any one you share this link with can claim it. Do not share with"
-        f" anyone!\n"
+        f" popups):\n[AtomicHub](<{link.ah}>) or (same NFT) [NeftyBlocks](<{link.nefty}>)\n"
+        f"WARNING: Any one you share this link with can claim it. "
+        f"Do not share with anyone!\n"
         f"Avoid scams: before clicking a claim link, ensure the top level domain is **atomichub.io**\n"
         f"As an additional security measure, make sure I pinged you in <#{channel.id}> for this link."
         f" Impostors can't send messages in that channel.\n"
@@ -1053,7 +1079,6 @@ async def announce_and_send_link(
         f"Then you can use the `,setwallet <address>` command, for example,"
         f"if your address is `cmcdrops4all`, use `,setwallet cmcdrops4all`."
     )
-    claim_id = link.split("?")[0].split("/")[-1]
     try:
         await user.send(to_send)
     except (HTTPException, Forbidden) as e:
@@ -1070,7 +1095,7 @@ async def announce_and_send_link(
             to_announce += f" *(in {user.guild})*"
         to_announce += (
             f"\n{user.mention} ({user.id}) has been sent a random {cinfo.name}"
-            f" NFT, claim link [#{claim_id}](<https://wax.atomichub.io/trading/link/wax-mainnet/{claim_id}>). Congrats!"
+            f" NFT, claim link [#{link.link_id}](<{link.public}>). Congrats!"
         )
         channel = bot.get_guild(cinfo.guild).get_channel(cinfo.announce_ch)
         try:
@@ -1078,7 +1103,7 @@ async def announce_and_send_link(
         except Forbidden:
             pass
 
-    return int(claim_id)
+    return int(link.link_id)
 
 
 async def send_and_announce_drop(
@@ -1097,11 +1122,11 @@ async def send_and_announce_drop(
 
     linked_wallet = await bot_.storage[None].get_note(member, "LinkedWallet")
     if linked_wallet == "Not found.":
-        link = await wax_con.get_random_claim_link(
+        link: Claimlink = await wax_con.get_random_claim_link(
             str(member)[:50], memo=reason, num=num, collection=collection
         )
 
-        assert "https://wax.atomichub.io/trading/link/" in link, (
+        assert link.link_id, (
             f"I received an invalid claimlink trying to send a claimlink to {member}. This shouldn't have happened, "
             f"please let Vyryn know. Details: {link}"
         )
