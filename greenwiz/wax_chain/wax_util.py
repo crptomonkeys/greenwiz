@@ -324,9 +324,7 @@ class EosJsonRpcWrapper(EosJsonRpc):
                 try:
                     if res.status == 500:
                         error = resp_dict.get("error", {})
-                        raise ERROR_NAME_MAP.get(error.get("name"), EosRpcException)(
-                            error
-                        )
+                        raise ERROR_NAME_MAP.get(error.get("name"), EosRpcException)(error)
                 except TypeError:
                     pass
                 return resp_dict
@@ -356,19 +354,10 @@ class WaxConnection:
         self.session = bot.session
         self.bot = bot
         self.cl_reentrancy_guard = False
-        self.history_rpc = [
-            EosJsonRpcWrapper(addr, ses=self.session) for addr in self.history_endpoints
-        ]
-        self.api_rpc = [
-            EosJsonRpcWrapper(addr, ses=self.session) for addr in self.api_endpoints
-        ]
-        self.atomic_rpc = [
-            EosJsonRpcWrapper(addr, ses=self.session) for addr in self.atomic_endpoints
-        ]
-        self.hyperion_rpc = [
-            EosJsonRpcWrapper(addr, ses=self.session)
-            for addr in self.hyperion_endpoints
-        ]
+        self.history_rpc = [EosJsonRpcWrapper(addr, ses=self.session) for addr in self.history_endpoints]
+        self.api_rpc = [EosJsonRpcWrapper(addr, ses=self.session) for addr in self.api_endpoints]
+        self.atomic_rpc = [EosJsonRpcWrapper(addr, ses=self.session) for addr in self.atomic_endpoints]
+        self.hyperion_rpc = [EosJsonRpcWrapper(addr, ses=self.session) for addr in self.hyperion_endpoints]
         self.log(f"Wax history endpoints: {self.history_endpoints}")
         self.log(f"Wax core api endpoints: {self.api_endpoints}")
         self.log(f"Wax atomic endpoints: {self.atomic_endpoints}")
@@ -395,9 +384,7 @@ class WaxConnection:
         chain_id: bytes = b""
         block: Optional[dict[str, Any]] = None
         if len(actions) < 1:
-            raise AssertionError(
-                "Invalid transaction composed, a transaction must have at least one action."
-            )
+            raise AssertionError("Invalid transaction composed, a transaction must have at least one action.")
         self.log(f"Executing a transaction, actions: {actions}")
 
         # Try getting the head block from each rpc until one succeeds
@@ -409,15 +396,11 @@ class WaxConnection:
                 for action in actions:
                     if not isinstance(action.data, dict):
                         continue
-                    self.log(
-                        f"Attempting to prepare action {action.account}::{action.name}::{action.data}"
-                    )
+                    self.log(f"Attempting to prepare action {action.account}::{action.name}::{action.data}")
                     abi_bin = await rpc.abi_json_to_bin(action)
                     action.data = binascii.unhexlify(abi_bin["binargs"])
                 suc = rpc.URL
-                self.log(
-                    f"Successfully got head block {str(block)[:2000]}, {chain_id=} from {rpc.URL}."
-                )
+                self.log(f"Successfully got head block {str(block)[:2000]}, {chain_id=} from {rpc.URL}.")
                 break
             except (
                 IndexError,
@@ -445,14 +428,11 @@ class WaxConnection:
                 continue
         if block is None:
             raise InvalidWaxCardSend(
-                f"Failed to get head block from any of my {len(self.api_endpoints)} configured "
-                f"API endpoints."
+                f"Failed to get head block from any of my {len(self.api_endpoints)} configured API endpoints."
             )
 
         if failed_rpcs:
-            self.log(
-                f"Failed to get head block from {failed_rpcs} but eventually got {block} from {suc}."
-            )
+            self.log(f"Failed to get head block from {failed_rpcs} but eventually got {block} from {suc}.")
 
         # Create the transaction using the block parameters
         transaction = EosTransaction(
@@ -463,22 +443,15 @@ class WaxConnection:
 
         # Serialize the transaction once for idempotence
         bytes_serialized_transaction: bytes = serializer.serialize(transaction)
-        digest = hashlib.sha256(
-            b"".join((chain_id, bytes_serialized_transaction, context_free_bytes))
-        ).digest()
+        digest = hashlib.sha256(b"".join((chain_id, bytes_serialized_transaction, context_free_bytes))).digest()
         signatures = [self.wax_ac[sender_ac].key.sign(digest)]
         serialized_transaction = binascii.hexlify(bytes_serialized_transaction).decode()
         self.log(f"Serialized transaction {transaction}, creating broadcast tasks.")
 
         # Send the transaction to all connected nodes simultaneously.
-        tasks = [
-            asyncio.create_task(self.tx(rpc, signatures, serialized_transaction))
-            for rpc in self.api_rpc
-        ]
+        tasks = [asyncio.create_task(self.tx(rpc, signatures, serialized_transaction)) for rpc in self.api_rpc]
 
-        async def get_first_non_exception_result(
-            tasks: List[asyncio.Task], timeout: int = 60
-        ) -> Any:
+        async def get_first_non_exception_result(tasks: List[asyncio.Task], timeout: int = 60) -> Any:
             """
             Awaits the first task to successfully complete without raising an exception
 
@@ -492,18 +465,14 @@ class WaxConnection:
                         self.log(f"In wax execute, task failed with error: {exc}")
                         continue
                 # If we get here, none of the tasks succeeded
-                self.log(
-                    "Failed to broadcast a wax transaction; all my connected endpoints appear to be down."
-                )
+                self.log("Failed to broadcast a wax transaction; all my connected endpoints appear to be down.")
                 raise InvalidWaxCardSend(
                     "Hmm, all the APIs I am connected to seem to be down or unhappy with me at the moment. "
                     "Try again later."
                 )
             except asyncio.TimeoutError:
                 self.log("Failed to broadcast a wax transaction; timeout reached.")
-                raise InvalidWaxCardSend(
-                    "Timed out waiting for a valid result from any node. Try again later."
-                )
+                raise InvalidWaxCardSend("Timed out waiting for a valid result from any node. Try again later.")
             finally:
                 # Cancel any tasks that haven't completed
                 for task in tasks:
@@ -538,9 +507,7 @@ class WaxConnection:
                 return tx_resp
             else:
                 self.log(f"Transaction response invalid: {content}")
-                raise ValueError(
-                    "Transaction response does not contain expected fields."
-                )
+                raise ValueError("Transaction response does not contain expected fields.")
 
     async def transfer_funds(
         self,
@@ -556,9 +523,7 @@ class WaxConnection:
                 to_addr=receiver,
                 quantity=prep_amount,
                 memo=f"Funds transfer by {sender} on behalf of NFT Tip Bot.",
-                authorization=[
-                    self.wax_ac[sender_ac].authorization(MINT_ACC_PERMISSION)
-                ],
+                authorization=[self.wax_ac[sender_ac].authorization(MINT_ACC_PERMISSION)],
             )
         ]
 
@@ -580,9 +545,7 @@ class WaxConnection:
                 to_addr=receiver,
                 asset_ids=asset_ids,
                 memo=memo,
-                authorization=[
-                    self.wax_ac[sender_ac].authorization(TIP_ACC_PERMISSION)
-                ],
+                authorization=[self.wax_ac[sender_ac].authorization(TIP_ACC_PERMISSION)],
             )
         ]
 
@@ -603,9 +566,7 @@ class WaxConnection:
                 collection=collection,
                 schema=schema,
                 template_id=template_id,
-                authorization=[
-                    self.wax_ac[collection].authorization(MINT_ACC_PERMISSION)
-                ],
+                authorization=[self.wax_ac[collection].authorization(MINT_ACC_PERMISSION)],
             )
         ] * amount
 
@@ -628,9 +589,7 @@ class WaxConnection:
         for rpc in self.history_rpc:
             if rpc.URL == faulty:
                 to_remove.append(rpc)
-        self.log(
-            f"Removing {len(to_remove)} EosJsonRpcWrappers from the semi-random weighted list as faulty."
-        )
+        self.log(f"Removing {len(to_remove)} EosJsonRpcWrappers from the semi-random weighted list as faulty.")
         for rpc_ in self.history_rpc:
             if rpc_.URL == faulty:
                 self.history_rpc.remove(rpc_)
@@ -654,44 +613,29 @@ class WaxConnection:
                     "All APIs have been exhausted. Resetting the weighted RPC list and warning the user.",
                     "WARN",
                 )
-                self.history_rpc.extend(
-                    [
-                        EosJsonRpcWrapper(x, ses=self.session)
-                        for x in self.history_endpoints
-                    ]
-                )
+                self.history_rpc.extend([EosJsonRpcWrapper(x, ses=self.session) for x in self.history_endpoints])
                 raise UnableToCompleteRequestedAction(
                     "All APIs I am connected to have reported invalid results, so I wasn't able to confirm"
                     " your transaction."
                 )
             selected = self.history_rpc[0]
             host = selected.URL
-            self.log(
-                f"Attempting to confirm transaction {tx_id} with url {selected.URL}"
-            )
+            self.log(f"Attempting to confirm transaction {tx_id} with url {selected.URL}")
+            resp = None
             try:
-                async with self.session.get(
-                    host + wax_history_api, params=params
-                ) as resp:
+                async with self.session.get(host + wax_history_api, params=params) as resp:
                     response = await resp.json(content_type=None)
-                    self.log(
-                        f"Response to attempt to get history for {tx_id}: {response} (from {selected.URL})"
-                    )
+                    self.log(f"Response to attempt to get history for {tx_id}: {response} (from {selected.URL})")
                     code = get_resp_code(response)
                     if code < 400 and response.get("executed", False):
                         try:
-                            link_id: int = response["actions"][1]["act"]["data"][
-                                "link_id"
-                            ]
+                            link_id: int = response["actions"][1]["act"]["data"]["link_id"]
                         except KeyError:
                             link_id = int(
-                                str(response)
-                                .split("{'link_id': '", maxsplit=1)[1]
-                                .split("', ", maxsplit=1)[0]
+                                str(response).split("{'link_id': '", maxsplit=1)[1].split("', ", maxsplit=1)[0]
                             )
                         self.log(
-                            f"Received an apparently well-formed response for link_id {link_id} from "
-                            f"{selected.URL}."
+                            f"Received an apparently well-formed response for link_id {link_id} from {selected.URL}."
                         )
                         return str(link_id)
                     if code == 410 or code == 404:
@@ -720,16 +664,12 @@ class WaxConnection:
                 aiohttp.ClientConnectorCertificateError,
                 ClientOSError,
             ) as e:
-                self.log(
-                    f"{type(e)}::{e} for tx_id {tx_id} from {selected.URL}. Continuing..."
-                )
+                self.log(f"{type(e)}::{e} for tx_id {tx_id} from {selected.URL}. Continuing...")
                 self.update_weighted_history_rpc(selected)
             cycles += 1
 
         self.update_weighted_history_rpc(selected)
-        self.log(
-            f"Timed out, failing to confirm {tx_id} after 30 iterations of an exponential backoff."
-        )
+        self.log(f"Timed out, failing to confirm {tx_id} after 30 iterations of an exponential backoff.")
         raise InvalidWaxCardSend(
             "I submitted the transaction, but WAX failed to process it within"
             f" 27 minutes, so the attempt has timed out. I have tried submitting"
@@ -755,9 +695,7 @@ class WaxConnection:
         actions = [
             atomictoolsx.cancellink(
                 link_id=i,
-                authorization=[
-                    self.wax_ac[collection].authorization(TIP_ACC_PERMISSION)
-                ],
+                authorization=[self.wax_ac[collection].authorization(TIP_ACC_PERMISSION)],
             )
             for i in link_ids
         ]
@@ -767,9 +705,7 @@ class WaxConnection:
         receipt = processed.get("receipt", dict())
         self.log(receipt)
         status = receipt.get("status", "errored")
-        self.log(
-            f"Claimlinks {link_ids} cancellation. Result is: {result}, transaction id is {tx_id}"
-        )
+        self.log(f"Claimlinks {link_ids} cancellation. Result is: {result}, transaction id is {tx_id}")
         return status, tx_id
 
     async def cancel_claimlink(
@@ -803,18 +739,14 @@ class WaxConnection:
                 key=key,
                 asset_ids=asset_ids,
                 memo=memo,
-                authorization=[
-                    self.wax_ac[collection].authorization(TIP_ACC_PERMISSION)
-                ],
+                authorization=[self.wax_ac[collection].authorization(TIP_ACC_PERMISSION)],
             ),
             atomicassets.transfer(
                 from_addr=self.wax_ac[collection].name,
                 to_addr="atomictoolsx",
                 asset_ids=asset_ids,
                 memo="link",
-                authorization=[
-                    self.wax_ac[collection].authorization(TIP_ACC_PERMISSION)
-                ],
+                authorization=[self.wax_ac[collection].authorization(TIP_ACC_PERMISSION)],
             ),
         ]
         result = await self.execute_transaction(actions, sender_ac=collection)
@@ -835,15 +767,10 @@ class WaxConnection:
     ) -> list[WaxNFT]:
         """Helper function that gets random NFTs to send for drops"""
         if not hasattr(self.bot, "cached_cards"):
-            raise UnableToCompleteRequestedAction(
-                "I'm still loading my cache on startup, try again in a few minutes."
-            )
+            raise UnableToCompleteRequestedAction("I'm still loading my cache on startup, try again in a few minutes.")
 
         if len(self.bot.cached_cards[collection]) < 1:
-            raise NoCardsException(
-                f"The {collection} Tip Bot account is empty, so I can't send {user} any more "
-                f"cards"
-            )
+            raise NoCardsException(f"The {collection} Tip Bot account is empty, so I can't send {user} any more cards")
 
         selected_asset_ids = []
         # Ensure parallel executions can't choose the same asset.
@@ -854,8 +781,7 @@ class WaxConnection:
         if n_cards < num:
             self.cl_reentrancy_guard = False
             raise NoCardsException(
-                f"The bot account only has {n_cards} cards at the moment, "
-                f"so I can't send {user} {num} cards."
+                f"The bot account only has {n_cards} cards at the moment, so I can't send {user} {num} cards."
             )
         for i in range(num):
             # bot.cached_cards is refreshed every five minutes and shuffled at fetch time.
@@ -863,18 +789,14 @@ class WaxConnection:
         self.cl_reentrancy_guard = False
         return selected_asset_ids
 
-    def get_memo(
-        self, user: str, memo: str = "", collection: str = DEFAULT_WAX_COLLECTION
-    ) -> str:
+    def get_memo(self, user: str, memo: str = "", collection: str = DEFAULT_WAX_COLLECTION) -> str:
         """Helper function that creates a valid memo to use for a drop"""
         if memo == "":
             f"Random {collection} reward for ({user})."
         else:
             memo += f" ({user})"
 
-        message_length = (
-            len(memo) + len(get_collection_info(collection).link_message_append) + 1
-        )
+        message_length = len(memo) + len(get_collection_info(collection).link_message_append) + 1
         if message_length >= 256:
             raise InvalidInput(
                 f"Your memo must be less than 256 characters long. With the bit I add,"
@@ -889,21 +811,13 @@ class WaxConnection:
         # Choose an asset and make a claim link.
         selected_assets = await self.get_random_assets_to_send(user, num, collection)
         selected_asset_ids = [asset.asset_id for asset in selected_assets]
-        link: Claimlink = await self.create_claimlink(
-            selected_asset_ids, memo=memo, collection=collection
-        )
+        link: Claimlink = await self.create_claimlink(selected_asset_ids, memo=memo, collection=collection)
         return link
 
     async def update_salt(self) -> str:
-        acc: EosAccount = EosAccount(
-            name=MONKEYMATCH_ACC_NAME, private_key=MONKEYMATCH_PRIV_KEY
-        )
+        acc: EosAccount = EosAccount(name=MONKEYMATCH_ACC_NAME, private_key=MONKEYMATCH_PRIV_KEY)
         salt: str = gen_salt()
-        actions = [
-            monkeysmatch.setsalt(
-                salt=salt, authorization=acc.authorization(SALT_ACC_PERMISSION)
-            )
-        ]
+        actions = [monkeysmatch.setsalt(salt=salt, authorization=acc.authorization(SALT_ACC_PERMISSION))]
         await self.execute_transaction(actions, sender_ac=MONKEYMATCH_ACC_NAME)
         return salt
 
@@ -923,14 +837,8 @@ class WaxConnection:
                 )
             except EosRpcException:
                 continue
-            return {
-                item["owner"]: item["completed_sets"]
-                for item in res["rows"]
-                if item["completed_sets"] >= _min
-            }
-        raise UnableToCompleteRequestedAction(
-            "All the apis I am connected to appear to be down at the moment. (2)"
-        )
+            return {item["owner"]: item["completed_sets"] for item in res["rows"] if item["completed_sets"] >= _min}
+        raise UnableToCompleteRequestedAction("All the apis I am connected to appear to be down at the moment. (2)")
 
 
 def incr_given_today(uid: int) -> None:
@@ -992,9 +900,7 @@ async def announce_drop(
     if num == 1:
         nft_info = " NFT."
         if assets[0].ipfs_hash != "":
-            nft_info = (
-                f" [NFT](https://ipfs.neftyblocks.io/ipfs/{assets[0].ipfs_hash})."
-            )
+            nft_info = f" [NFT](https://ipfs.neftyblocks.io/ipfs/{assets[0].ipfs_hash})."
         to_send = (
             f"Congratulations! You have won a random {cinfo.name} {nft_info}"
             f" It's been sent directly to your linked wallet {wallet}, you can see it with the following link\n"
@@ -1008,8 +914,7 @@ async def announce_drop(
         to_send += "Note that only links for the first 5 are included, check out the rest in your profile!"
     channel = bot.get_guild(cinfo.guild).get_channel(cinfo.announce_ch)
     to_send += "\n".join(
-        f"<https://wax.atomichub.io/explorer/asset/wax-mainnet/{asset.asset_id}>"
-        for asset in assets[:5]
+        f"<https://wax.atomichub.io/explorer/asset/wax-mainnet/{asset.asset_id}>" for asset in assets[:5]
     )
     to_send += (
         f"\nAvoid scams: before clicking the link, ensure the top level domain is **atomichub.io**\n"
@@ -1022,8 +927,7 @@ async def announce_drop(
     except (HTTPException, Forbidden) as e:
         asyncio.create_task(schedule_dm_user(user, 60 * 15, to_send))
         raise UnableToCompleteRequestedAction(
-            f"I couldn't send {user.mention} their drop DM confirmation because {e}. I "
-            f"will try again in 10 minutes."
+            f"I couldn't send {user.mention} their drop DM confirmation because {e}. I will try again in 10 minutes."
         )
 
     if announce:
@@ -1037,8 +941,7 @@ async def announce_drop(
             ]
         )
         to_announce += (
-            f"\n{user.mention} ({user.id}) has been sent a random {cinfo.name}"
-            f" NFT, asset {assets_string}. Congrats!"
+            f"\n{user.mention} ({user.id}) has been sent a random {cinfo.name} NFT, asset {assets_string}. Congrats!"
         )
         channel = bot.get_guild(cinfo.guild).get_channel(cinfo.announce_ch)
         try:
@@ -1060,9 +963,7 @@ async def announce_and_send_link(
     the person who ran the command instead."""
     cinfo = get_collection_info(collection)
     if num == 1:
-        to_send = (
-            f"Congratulations! You have won a random {cinfo.name} NFT! You can claim it"
-        )
+        to_send = f"Congratulations! You have won a random {cinfo.name} NFT! You can claim it"
     else:
         to_send = f"Congratulations! You have won {num} random {cinfo.name} NFTs! You can claim them"
     channel = bot.get_guild(cinfo.guild).get_channel(cinfo.announce_ch)
@@ -1131,21 +1032,15 @@ async def send_and_announce_drop(
             f"please let Vyryn know. Details: {link}"
         )
 
-        memo = wax_con.get_memo(
-            user=str(member)[:50], memo=reason, collection=collection
-        )
+        memo = wax_con.get_memo(user=str(member)[:50], memo=reason, collection=collection)
         claim_id = await announce_and_send_link(bot_, link, member, memo)
 
         bot_.log(f"Announced and sent link {claim_id}", "DBUG")
         return [claim_id]
 
     else:
-        memo = wax_con.get_memo(
-            user=str(member)[:50], memo=reason, collection=collection
-        )
-        selected_assets = await wax_con.get_random_assets_to_send(
-            user=str(member), num=num, collection=collection
-        )
+        memo = wax_con.get_memo(user=str(member)[:50], memo=reason, collection=collection)
+        selected_assets = await wax_con.get_random_assets_to_send(user=str(member), num=num, collection=collection)
         selected_asset_ids = [asset.asset_id for asset in selected_assets]
         await wax_con.transfer_assets(
             receiver=linked_wallet,
@@ -1169,10 +1064,7 @@ async def send_link_start_to_finish(
 ) -> list[int]:
     # Verify member
     if member is None:
-        raise InvalidInput(
-            "I could not find that member. This command requires a discord mention or user"
-            " id."
-        )
+        raise InvalidInput("I could not find that member. This command requires a discord mention or user id.")
 
     # Determine which collection is being dropped to
     authd, cinfo = determine_collection(message.guild, sender, bot_)
@@ -1208,8 +1100,7 @@ async def send_link_start_to_finish(
         bot_.drop_send_reentrancy = {}
     if bot_.drop_send_reentrancy.get(sender.id, False):
         raise InvalidInput(
-            "You may only use this command once at a time. Wait for the previous drop to complete"
-            " and then try again."
+            "You may only use this command once at a time. Wait for the previous drop to complete and then try again."
         )
     elif authd < 2:
         # Reentrancy guard is only important for non-printers, because reentrancy guard is only for preventing
@@ -1222,9 +1113,7 @@ async def send_link_start_to_finish(
         used = check_given_today(sender.id)
         if used >= cinfo.daily_limit:
             bot_.drop_send_reentrancy[sender.id] = False
-            raise InvalidInput(
-                "You have given out the maximum number of drops for today. Try again tomorrow."
-            )
+            raise InvalidInput("You have given out the maximum number of drops for today. Try again tomorrow.")
         # Allow for easy testing of the daily limit
         if "test42" in reason:
             try:
@@ -1233,9 +1122,7 @@ async def send_link_start_to_finish(
                 await usage_react(used, message)
             finally:
                 bot_.drop_send_reentrancy[sender.id] = False
-            await message.channel.send(
-                f"Command usages today: {used + 1}/{cinfo.daily_limit}"
-            )
+            await message.channel.send(f"Command usages today: {used + 1}/{cinfo.daily_limit}")
             return [-1]
 
     try:
@@ -1265,8 +1152,7 @@ async def send_link_start_to_finish(
     while intro:
         if not isinstance(introduced, discord.abc.Snowflake):
             raise AssertionError(
-                "When post is classed as an intro and introduced role is defined,"
-                " introduced role should be addable."
+                "When post is classed as an intro and introduced role is defined, introduced role should be addable."
             )
         # To ensure it gets added if discord messes up initially
         await member.add_roles(introduced)
@@ -1301,19 +1187,10 @@ async def get_card_dict(
     collection_caches = cache_ages.get(collection, {})
     last_cached_time = collection_caches.get(page, 0)
 
-    if (
-        time() - last_cached_time < WAX_CACHE_TIME
-        and collection in wax_dict
-        and not force
-        and not show_prices
-    ):
+    if time() - last_cached_time < WAX_CACHE_TIME and collection in wax_dict and not force and not show_prices:
         # If cache has this collection and time hasn't yet passed, use cached dict
         return wax_dict[collection]
-    if not (
-        time() - last_cached_time < WAX_CACHE_TIME
-        and collection in wax_dict
-        and not force
-    ):
+    if not (time() - last_cached_time < WAX_CACHE_TIME and collection in wax_dict and not force):
         try:
             params = {"limit": 24, "collection_name": collection, "page": page}
             async with session.get(atomic_api + "templates", params=params) as response:
@@ -1343,13 +1220,7 @@ async def get_card_dict(
         }
         _tasks = []
         for template in templates:
-            _tasks.append(
-                asyncio.create_task(
-                    get_owners(
-                        template, session, num=templates[template]["issued_supply"]
-                    )
-                )
-            )
+            _tasks.append(asyncio.create_task(get_owners(template, session, num=templates[template]["issued_supply"])))
         responses: list[tuple[int, list[str]]] = await asyncio.gather(
             *_tasks
         )  # a list of the list of owners of each card
@@ -1360,15 +1231,11 @@ async def get_card_dict(
             cache_ages[collection][page] = time()
         for card_id, _response in responses:
             max_card = templates[card_id]["max_supply"]
-            undistributed: int = _response.count(base_addr) + (
-                max_card - templates[card_id]["issued_supply"]
-            )
+            undistributed: int = _response.count(base_addr) + (max_card - templates[card_id]["issued_supply"])
             if max_card == 0:
                 distributed_percentage = 0
             else:
-                distributed_percentage = int(
-                    (max_card - undistributed) / max_card * 100
-                )
+                distributed_percentage = int((max_card - undistributed) / max_card * 100)
             card_dict = {
                 "name": templates[card_id]["name"],
                 "max_supply": templates[card_id]["max_supply"],
@@ -1399,9 +1266,7 @@ async def get_card_dict(
     return wax_dict[collection]
 
 
-async def update_cache_cards(
-    session: aiohttp.ClientSession, force: bool = False
-) -> dict[int, dict[str, int]]:
+async def update_cache_cards(session: aiohttp.ClientSession, force: bool = False) -> dict[int, dict[str, int]]:
     global cache_cards, card_cache_age
     collection = DEFAULT_WAX_COLLECTION
     if time() - card_cache_age < WAX_CACHE_TIME and not force:
@@ -1453,11 +1318,7 @@ async def get_fair_price_for_card(
         template_id = await get_template_id(template_id, session)
     global template_id_price_cache_ages, template_id_price_cache
     last_cached_time = template_id_price_cache_ages.get(template_id, 0)
-    if (
-        time() - last_cached_time < WAX_CACHE_TIME
-        and template_id in template_id_price_cache
-        and not force
-    ):
+    if time() - last_cached_time < WAX_CACHE_TIME and template_id in template_id_price_cache and not force:
         # If cache has this collection and time hasn't yet passed, use cached dict
         sale_ema, lowest_offer = template_id_price_cache[template_id]
     else:
