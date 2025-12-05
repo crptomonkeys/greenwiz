@@ -5,19 +5,18 @@ from typing import Any
 
 import aiohttp
 import discord
+import utils.settings as settings
 from discord.ext import commands
 from discord.ext.commands import BucketType
-
-from utils.meta_cog import MetaCog
-import utils.settings as settings
 from utils.exceptions import InvalidInput
+from utils.meta_cog import MetaCog
 from utils.util import (
-    log,
-    load_json_var,
-    write_json_var,
-    now_stamp,
     has_cm_role,
     is_citizen,
+    load_json_var,
+    log,
+    now_stamp,
+    write_json_var,
 )
 from wax_chain.wax_util import send_and_announce_drop
 
@@ -34,15 +33,11 @@ class ConnectFailedToSendBan(ValueError):
     """monKeyconnect returned an unsuccessful response to my request to send bannao."""
 
 
-async def send_ban_to_user(
-    session: aiohttp.ClientSession, user: discord.User, amount=1.0
-) -> bool:
+async def send_ban_to_user(session: aiohttp.ClientSession, user: discord.User, amount=1.0) -> bool:
     """Sends the specified amount of banano to the specified user.
     Takes a ClientSession object, and a discord user object.
     Returns True on success, raises ConnectFailedToSendBan otherwise."""
-    params = (
-        f"uid={user.id}&code={settings.BANANO_DISTRIBUTION_AUTH_CODE}&amount={amount}"
-    )
+    params = f"uid={user.id}&code={settings.BANANO_DISTRIBUTION_AUTH_CODE}&amount={amount}"
     response = await session.get(f"{connect_url}{drop_banano_endpoint}?{params}")
 
     json_resp: dict[str, Any] = {}
@@ -57,9 +52,7 @@ async def send_ban_to_user(
     success = json_resp.get("success")
     if not success:
         if not json_resp.get("wax"):
-            log(
-                "Unable to send {user} bannao because they aren't registered for monKeyconnect."
-            )
+            log("Unable to send {user} bannao because they aren't registered for monKeyconnect.")
         else:
             log(
                 "Unable to send {user} banano for some reason other than not being registered."
@@ -76,9 +69,7 @@ def today():
 def check_user_opened_today_gift(uid: int):
     global cached_active_users
     global cached_active_users_age
-    if (
-        time() - cached_active_users_age > cache_time
-    ):  # If cache time hasn't yet passed, use cached dict
+    if time() - cached_active_users_age > cache_time:  # If cache time hasn't yet passed, use cached dict
         cached_active_users = load_json_var("santa_records")
         cached_active_users_age = time()
     try:
@@ -133,9 +124,7 @@ async def send_daily_reward(ctx, bot, base_luck_for_user: float = 1.0):
     author = ctx.author
     luck = random.random()
     reroll = random.random()
-    secondary_success = (
-        reroll < base_luck_for_user
-    )  # Secondary roll to make rewards more likely for higher role users
+    secondary_success = reroll < base_luck_for_user  # Secondary roll to make rewards more likely for higher role users
     if not secondary_success:
         msg = "Whoops! Santa forgot to drop off a gift. You got nothing from Santa today, not even coal."
         record_user_opened_today_gift(author.id, "None")
@@ -150,9 +139,7 @@ async def send_daily_reward(ctx, bot, base_luck_for_user: float = 1.0):
     elif luck > 0.2:
         amount = random.randint(8, 42)
         # amount = random.randint(2, 19)
-        msg = await attempt_to_send_daily_reward_ban_or_send_cm_instead(
-            bot.session, author, bot, float(amount)
-        )
+        msg = await attempt_to_send_daily_reward_ban_or_send_cm_instead(bot.session, author, bot, float(amount))
     else:
         # elif luck > 0.1:
         await send_daily_reward_cryptomonkey(bot, author)
@@ -177,9 +164,7 @@ async def send_coal(bot, user: discord.Member) -> None:
     record_user_opened_today_gift(user.id, f"Coal #{claim_ids}")
 
 
-async def send_daily_reward_ban(
-    session: aiohttp.ClientSession, user: discord.User, bot, amount: float
-):
+async def send_daily_reward_ban(session: aiohttp.ClientSession, user: discord.User, bot, amount: float):
     """
     Sends a random amount of banano between max_treat and min_treat to the user's bananobot address
     :param uid: user's discord id
@@ -266,8 +251,7 @@ class SantaBot(MetaCog):
             await ctx.message.clear_reactions()
             return await err(
                 ctx,
-                "Sorry, you must either be a Banano citizen or active on the cryptomonKeys "
-                "server to use this command.",
+                "Sorry, you must either be a Banano citizen or active on the cryptomonKeys server to use this command.",
             )
         await send_daily_reward(ctx, self.bot, base_luck_for_user=base_luck)
         try:
