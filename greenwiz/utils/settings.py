@@ -80,7 +80,7 @@ CRYPTOMONKEY_DROP_ADMINS = [
     682514501865570408,  # green
     118923557265735680,  # Kron
     416929638426869762,  # ghostcam
-    533663361770979369,  # WhiteFlag
+    158292310877011969,  # Majic
 ]
 
 # Channel or thread in which wallet link activity is logged.
