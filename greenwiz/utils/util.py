@@ -1,21 +1,20 @@
 import json
 import typing
-from datetime import datetime, timezone, timedelta
 from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
 
 import discord
 from aioeosabi.exceptions import EosAssertMessageException
-
 from utils.exceptions import InvalidInput
 
 # Returns current timestamp in the desired format, in this case MM/DD/YYYY HH:MM:SS
 from utils.settings import (
-    NUMBER_REACTIONS,
-    BANANO_GUID,
-    CM_GUID,
     ACTIVITY_COOLDOWN,
-    DONT_LOG,
+    BANANO_GUID,
     BIGNUMS,
+    CM_GUID,
+    DONT_LOG,
+    NUMBER_REACTIONS,
 )
 
 
@@ -220,9 +219,7 @@ async def usage_react(num: int, message: discord.Message) -> None:
     return
 
 
-async def parse_user(
-    ctx, user: str
-) -> typing.Union[discord.Member, discord.User, None]:
+async def parse_user(ctx, user: str) -> typing.Union[discord.Member, discord.User, None]:
     """Attempts to turn a string into a user, in the following order of preference:
     ID
     Parsed ID
@@ -240,9 +237,7 @@ async def parse_user(
     except ValueError:
         pass
     try:
-        user_obj = ctx.guild.get_member_named(user) or ctx.guild.get_member_named(
-            user[1:]
-        )
+        user_obj = ctx.guild.get_member_named(user) or ctx.guild.get_member_named(user[1:])
         return user_obj
     except (ValueError, TypeError):
         return None
@@ -294,10 +289,7 @@ def calc_msg_activity(bot, author: discord.User, content: str) -> int:
     added_activity_score = max(len(valid_words) - 2, 0)
     if not hasattr(bot, "recent_actives"):
         bot.recent_actives = dict()
-    recently_spoke = (
-        datetime.now().timestamp() - bot.recent_actives.get(author.id, 0)
-        < ACTIVITY_COOLDOWN
-    )
+    recently_spoke = datetime.now().timestamp() - bot.recent_actives.get(author.id, 0) < ACTIVITY_COOLDOWN
     log(
         f"Checking activity for {author}. recently_spoke: {recently_spoke}. added_activity_score:"
         f" {added_activity_score}. content: {content}",
@@ -315,9 +307,7 @@ async def save_temp_then_share(ctx, content: str, message: str, filename: str) -
     await ctx.send(message, file=discord.File(filename))
 
 
-async def get_addrs_from_content_or_file(
-    message: discord.Message, provided: str = ""
-) -> tuple[bool, list[str]]:
+async def get_addrs_from_content_or_file(message: discord.Message, provided: str = "") -> tuple[bool, list[str]]:
     """Returns a tuple of bool and list of str.
     The bool is whether the results should be relayed inline or in a file.
     The list is a list of addresses from either the message attachment, if available, or the message content.
@@ -398,7 +388,7 @@ async def send_random_nft_to_each(
     bot, ctx, addresses: typing.List[str], memo: str, batch_size: int = 20
 ) -> typing.List[str]:
     """Sends a random NFT to each wax address in a given list. ctx.sends a list of transaction hashes as it goes."""
-    from utils.settings import TIP_ACC_PERMISSION, DEFAULT_WAX_COLLECTION
+    from utils.settings import DEFAULT_WAX_COLLECTION, TIP_ACC_PERMISSION
     from wax_chain.wax_contracts import atomicassets
     from wax_chain.wax_util import InvalidWaxCardSend
 
@@ -411,24 +401,19 @@ async def send_random_nft_to_each(
         return bot.cached_cards["crptomonkeys"].pop().asset_id
 
     for receiver in addresses:
-
         action = atomicassets.transfer(
             from_addr=bot.wax_ac[DEFAULT_WAX_COLLECTION].name,
             to_addr=receiver,
             asset_ids=[random_id()],
             memo=memo,
-            authorization=[
-                bot.wax_ac[DEFAULT_WAX_COLLECTION].authorization(TIP_ACC_PERMISSION)
-            ],
+            authorization=[bot.wax_ac[DEFAULT_WAX_COLLECTION].authorization(TIP_ACC_PERMISSION)],
         )
         actions.append(action)
         queued_addrs.add(receiver)
         # Send in batches of batch_size
         if len(actions) > batch_size - 1:
             try:
-                result = await bot.wax_con.execute_transaction(
-                    actions, sender_ac=DEFAULT_WAX_COLLECTION
-                )
+                result = await bot.wax_con.execute_transaction(actions, sender_ac=DEFAULT_WAX_COLLECTION)
                 tx_id = result["transaction_id"]
                 tx_ids.append(tx_id)
                 tx_link = f"https://wax.bloks.io/transaction/{tx_id}"
@@ -448,9 +433,7 @@ async def send_random_nft_to_each(
 
     if len(actions) > 0:
         try:
-            result = await bot.wax_con.execute_transaction(
-                actions, sender_ac=DEFAULT_WAX_COLLECTION
-            )
+            result = await bot.wax_con.execute_transaction(actions, sender_ac=DEFAULT_WAX_COLLECTION)
             tx_id = result["transaction_id"]
             tx_ids.append(tx_id)
             tx_link = f"https://wax.bloks.io/transaction/{tx_id}"
@@ -463,11 +446,7 @@ async def send_random_nft_to_each(
                 f"All the APIs I'm connected to are down at the moment. Stopping. Successful transactions: {tx_ids}"
             )
     if len(failed_addrs) > 0:
-        await ctx.send(
-            f"Failed to send to {len(failed_addrs)} addresses:\n{list(failed_addrs)}"[
-                :1990
-            ]
-        )
+        await ctx.send(f"Failed to send to {len(failed_addrs)} addresses:\n{list(failed_addrs)}"[:1990])
     return tx_ids
 
 
@@ -476,3 +455,15 @@ class WaxNFT:
     # Helper class for storing information on cached assets that may be needed later
     asset_id: int
     ipfs_hash: str
+
+    @property
+    def ah(self) -> str:
+        return f"https://wax.atomichub.io/explorer/asset/wax-mainnet/{self.asset_id}"
+
+    @property
+    def nefty(self) -> str:
+        return f"https://neftyblocks.com/assets/{self.asset_id}"
+
+    @property
+    def nefty_ipfs(self) -> str:
+        return f"https://ipfs.neftyblocks.io/ipfs/{self.ipfs_hash}"

@@ -54,7 +54,6 @@ from utils.settings import (
     WAX_CACHE_TIME,
 )
 from utils.util import WaxNFT, load_json_var, log, today, usage_react, write_json_var
-
 from wax_chain.collection_config import determine_collection, get_collection_info
 from wax_chain.wax_contracts import atomicassets, atomictoolsx, monkeysmatch
 from wax_chain.wax_contracts.monkeysmatch import gen_salt
@@ -285,7 +284,7 @@ class Claimlink:
 
     @property
     def public(self) -> str:
-        return f"https://wax.atomichub.io/trading/link/wax-mainnet/{self.link_id}"
+        return f"https://neftyblocks.com/links/{self.link_id}"
 
     def __repr__(self) -> str:
         return self.nefty
@@ -900,7 +899,7 @@ async def announce_drop(
     if num == 1:
         nft_info = " NFT."
         if assets[0].ipfs_hash != "":
-            nft_info = f" [NFT](https://ipfs.neftyblocks.io/ipfs/{assets[0].ipfs_hash})."
+            nft_info = f" [NFT]({assets[0].nefty_ipfs})."
         to_send = (
             f"Congratulations! You have won a random {cinfo.name} {nft_info}"
             f" It's been sent directly to your linked wallet {wallet}, you can see it with the following link\n"
@@ -913,11 +912,9 @@ async def announce_drop(
     if num >= 5:
         to_send += "Note that only links for the first 5 are included, check out the rest in your profile!"
     channel = bot.get_guild(cinfo.guild).get_channel(cinfo.announce_ch)
-    to_send += "\n".join(
-        f"<https://wax.atomichub.io/explorer/asset/wax-mainnet/{asset.asset_id}>" for asset in assets[:5]
-    )
+    to_send += "\n".join(f"<{asset.nefty}>" for asset in assets[:5])
     to_send += (
-        f"\nAvoid scams: before clicking the link, ensure the top level domain is **atomichub.io**\n"
+        f"\nAvoid scams: before clicking the link, ensure the top level domain is **atomichub.io** or **neftyblocks.com**\n"
         f"As an additional security measure, make sure I pinged you in <#{channel.id}> for this link."
         f" Impostors can't send messages in that channel.\n"
         f"More information about {cinfo.name} at <{cinfo.web}>"
@@ -934,12 +931,7 @@ async def announce_drop(
         to_announce = f"{cinfo.emoji} **{memo} Giveaway**"
         if user.guild is not None:
             to_announce += f" *(in {user.guild})*"
-        assets_string = " ".join(
-            [
-                f"[#{item.asset_id}](<https://wax.atomichub.io/explorer/asset/wax-mainnet/{item.asset_id}>)"
-                for item in assets
-            ]
-        )
+        assets_string = " ".join([f"[#{item.asset_id}](<{item.nefty}>)" for item in assets])
         to_announce += (
             f"\n{user.mention} ({user.id}) has been sent a random {cinfo.name} NFT, asset {assets_string}. Congrats!"
         )
