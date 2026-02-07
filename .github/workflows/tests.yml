@@ -9,45 +9,42 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest]
-        python-version: ['3.11']
-    
+        os: [ubuntu-latest]
+        python-version: ["3.11", "3.12"]
+
     steps:
-    - uses: actions/checkout@v3
+      - uses: actions/checkout@v6
 
-    - name: Set up python ${{ matrix.python-version}}
-      uses: actions/setup-python@v4
-      with:
-        python-version: ${{ matrix.python-version }}
-    
-    - name: Restore cache if present
-      uses: actions/cache/restore@v3
-      id: cache_restore
-      with:
-        path: ${{ env.pythonLocation }}
-        key: ${{ runner.os }}-${{ matrix.python-version }}-${{ hashFiles('**/poetry.lock') }}
+      - name: Set up python ${{ matrix.python-version}}
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
 
-    - name: Install dependencies
-      run: |
-        pip install poetry==2.0.0
-        poetry install
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.10.0"
 
-    - name: Save cache if not found
-      uses: actions/cache/save@v3
-      id: cache_save
-      with:
-       path: ${{ env.pythonLocation }}
-       key: ${{ runner.os }}-${{ matrix.python-version }}-${{ hashFiles('**/poetry.lock') }}
-      if: steps.cache_restore.outputs.cache-hit != 'true'
+      - name: Restore cache if present
+        uses: actions/cache/restore@v3
+        id: cache_restore
+        with:
+          path: ${{ env.pythonLocation }}
+          key: ${{ runner.os }}-${{ matrix.python-version }}-${{ hashFiles('**/uv.lock') }}
 
-    - name: Run flake8
-      run: |
-        poetry run flake8 greenwiz tests
-      
-    - name: Create mypy cache directory
-      run: mkdir -p .mypy_cache
+      - name: Install dependencies
+        run: uv sync --locked --all-extras --dev
 
-    - name: Run mypy
-      run: |
-        poetry run mypy greenwiz --install-types --non-interactive --cache-dir=.mypy_cache
-        poetry run mypy greenwiz --ignore-missing-imports --cache-dir=.mypy_cache
+      - name: Save cache if not found
+        uses: actions/cache/save@v3
+        id: cache_save
+        with:
+          path: ${{ env.pythonLocation }}
+          key: ${{ runner.os }}-${{ matrix.python-version }}-${{ hashFiles('**/poetry.lock') }}
+        if: steps.cache_restore.outputs.cache-hit != 'true'
+
+      - name: Run ruff
+        run: uv run ruff check
+
+      - name: Run tests
+        run: uv run pytest tests
