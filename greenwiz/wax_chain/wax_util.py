@@ -54,6 +54,7 @@ from utils.settings import (
     WAX_CACHE_TIME,
 )
 from utils.util import WaxNFT, load_json_var, log, today, usage_react, write_json_var
+
 from wax_chain.collection_config import determine_collection, get_collection_info
 from wax_chain.wax_contracts import atomicassets, atomictoolsx, monkeysmatch
 from wax_chain.wax_contracts.monkeysmatch import gen_salt
@@ -914,7 +915,7 @@ async def announce_drop(
     channel = bot.get_guild(cinfo.guild).get_channel(cinfo.announce_ch)
     to_send += "\n".join(f"<{asset.nefty}>" for asset in assets[:5])
     to_send += (
-        f"\nAvoid scams: before clicking the link, ensure the top level domain is **atomichub.io** or **neftyblocks.com**\n"
+        f"\nAvoid scams: before clicking the link, ensure the top level domain is atomichub.io or neftyblocks.com\n"
         f"As an additional security measure, make sure I pinged you in <#{channel.id}> for this link."
         f" Impostors can't send messages in that channel.\n"
         f"More information about {cinfo.name} at <{cinfo.web}>"
