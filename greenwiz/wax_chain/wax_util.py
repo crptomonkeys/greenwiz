@@ -413,6 +413,8 @@ class WaxConnection:
                 TypeError,
                 ClientOSError,
                 KeyError,
+                asyncio.TimeoutError,
+                aiohttp.ClientError,
             ) as e:
                 self.log(f"{e} error attempting to set up a transaction with {rpc.URL}")
                 if e is not None:
@@ -618,7 +620,8 @@ class WaxConnection:
                     "All APIs I am connected to have reported invalid results, so I wasn't able to confirm"
                     " your transaction."
                 )
-            selected = self.history_rpc[0]
+            # Rotate through endpoints; do not pin retries to index 0.
+            selected = self.history_rpc[cycles % len(self.history_rpc)]
             host = selected.URL
             self.log(f"Attempting to confirm transaction {tx_id} with url {selected.URL}")
             resp = None
@@ -627,6 +630,8 @@ class WaxConnection:
                     response = await resp.json(content_type=None)
                     self.log(f"Response to attempt to get history for {tx_id}: {response} (from {selected.URL})")
                     code = get_resp_code(response)
+                    if code == 0:
+                        code = resp.status
                     if code < 400 and response.get("executed", False):
                         try:
                             link_id: int = response["actions"][1]["act"]["data"]["link_id"]
@@ -646,6 +651,13 @@ class WaxConnection:
                         )
                         self.remove_all_from_history_rpc(selected.URL)
                         cycles = 0
+                    elif code >= 500:
+                        self.log(
+                            f"{selected.URL} returned status {code} from /get_transaction, so removing it from "
+                            f"this weighted retry list.",
+                            "WARN",
+                        )
+                        self.update_weighted_history_rpc(selected)
             except (JSONDecodeError, aiohttp.ClientConnectorError, AttributeError) as e:
                 text = resp.text if hasattr(resp, "text") else "[No response text]"
                 self.log(
@@ -663,6 +675,8 @@ class WaxConnection:
                 ServerDisconnectedError,
                 aiohttp.ClientConnectorCertificateError,
                 ClientOSError,
+                asyncio.TimeoutError,
+                aiohttp.ClientError,
             ) as e:
                 self.log(f"{type(e)}::{e} for tx_id {tx_id} from {selected.URL}. Continuing...")
                 self.update_weighted_history_rpc(selected)
