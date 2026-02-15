@@ -217,7 +217,7 @@ class Wax(MetaCog):
             member is None
             or not hasattr(member, "roles")
             or member.roles is None
-            or member.roles is []
+            or member.roles == []
         ):
             return await ctx.send(
                 "I could not find that member. This command requires a discord mention or user id."
