@@ -24,7 +24,7 @@ try:
 
     # The text to show in the bot's "Playing" field on its profile.
     STATUS = settings_priv.STATUS
-except AttributeError:
+except (ImportError, AttributeError):
     settings_priv = None
     STATUS = "The first, fastest and most magical NFT tipbot."
 # The default channel for a variety of log messages that aren't able to be sent on a server-specific basis.
@@ -210,7 +210,7 @@ try:
     print("Using settings_priv")
 
 
-except ImportError:
+except (ImportError, AttributeError):
     print("Attempting to use env variables")
     # Set the token in deployment through an environment variable
     TOKEN = os.getenv("BOT_TOKEN")
