@@ -67,6 +67,7 @@ from wax_chain.wax_market_utils import (
 )
 
 wax_history_api = "/v2/history/get_transaction"
+wax_actions_api = "/v2/history/get_actions"
 # 'https://wax.eu.eosamsterdam.net/', 'https://api.wax.liquidstudios.io/', 'https://api.wax.bountyblok.io/'
 full_api_weighted_list = [
     {"node_url": "https://wax.eu.eosamsterdam.net", "type": "api", "weight": 10},
@@ -595,6 +596,41 @@ class WaxConnection:
         for rpc_ in self.history_rpc:
             if rpc_.URL == faulty:
                 self.history_rpc.remove(rpc_)
+
+    async def get_hyperion_actions(self, params: dict[str, Any]) -> dict[str, Any]:
+        """Query /v2/history/get_actions from available Hyperion endpoints until one succeeds."""
+        if len(self.hyperion_rpc) < 1:
+            raise UnableToCompleteRequestedAction(
+                "I have no configured Hyperion endpoints at the moment."
+            )
+        attempts: list[str] = []
+        for rpc in self.hyperion_rpc:
+            try:
+                async with self.session.get(rpc.URL + wax_actions_api, params=params) as resp:
+                    response = await resp.json(content_type=None)
+                    code = get_resp_code(response)
+                    if code == 0:
+                        code = resp.status
+                    if code >= 400:
+                        attempts.append(f"{rpc.URL} -> status {code}")
+                        continue
+                    if not isinstance(response, dict):
+                        attempts.append(f"{rpc.URL} -> non-dict response")
+                        continue
+                    return response
+            except (
+                JSONDecodeError,
+                aiohttp.ClientError,
+                asyncio.TimeoutError,
+                ServerDisconnectedError,
+                ClientOSError,
+            ) as e:
+                attempts.append(f"{rpc.URL} -> {type(e).__name__}")
+                continue
+        raise UnableToCompleteRequestedAction(
+            "All Hyperion endpoints failed while fetching actions: "
+            f"{'; '.join(attempts[:8])}"
+        )
 
     async def get_link_id_and_confirm_claimlink_creation(self, tx_id) -> str:
         """Attempts to confirm that a claimlink was successfully created and get its link_id to

@@ -76,3 +76,21 @@ def test_claimlink_confirmation_rotates_history_endpoints(monkeypatch: MonkeyPat
     assert link_id == "12345"
     assert wax_con.session.calls[f"{bad_url}{wax_util.wax_history_api}"] == 1
     assert wax_con.session.calls[f"{good_url}{wax_util.wax_history_api}"] == 1
+
+
+def test_get_hyperion_actions_rotates_hyperion_endpoints() -> None:
+    bad_url = "https://bad-hyperion.example"
+    good_url = "https://good-hyperion.example"
+    responses = {
+        f"{bad_url}{wax_util.wax_actions_api}": [({"message": "error", "code": 500}, 500)],
+        f"{good_url}{wax_util.wax_actions_api}": [({"actions": [{"id": 1}]}, 200)],
+    }
+    wax_con = wax_util.WaxConnection.__new__(wax_util.WaxConnection)
+    wax_con.session = FakeSession(responses)
+    wax_con.hyperion_rpc = [SimpleNamespace(URL=bad_url), SimpleNamespace(URL=good_url)]
+
+    response = asyncio.run(wax_con.get_hyperion_actions({"account": "notify.world"}))
+
+    assert response["actions"][0]["id"] == 1
+    assert wax_con.session.calls[f"{bad_url}{wax_util.wax_actions_api}"] == 1
+    assert wax_con.session.calls[f"{good_url}{wax_util.wax_actions_api}"] == 1

@@ -40,9 +40,7 @@ TEST_PREFIX_OVERRIDE = ",,"
 BANANO_GUID = 415935345075421194
 CM_GUID = 733122024448458784
 # The endpoint to get special wax addresses from
-QUERY_SPECIALS_URL = (
-    "https://eosauthority.com/api/spa/bidnames?dir=asc&limit=1000&network=wax&page="
-)
+QUERY_SPECIALS_URL = "https://eosauthority.com/api/spa/bidnames?dir=asc&limit=1000&network=wax&page="
 # The endpoint to get upland recent visitors from.
 UPLAND_QUERY_URL = "https://api.upland.me/teleports/visitors/"
 # The list of upland property ids eligible for metaforce and cryptomonkeys rewards, respectively.
@@ -71,6 +69,41 @@ CRYPTOMONKEY_PROPERTY_LIST = [
     78053214267194,
     81856693908761,
 ]
+
+# Mine raffle configuration
+MINE_RAFFLE_LAND_IDS = [
+    "1099512958948",
+    "1099512959700",
+    "1099512960003",
+    "1099512959458",
+    "1099512960104",
+    "1099512960946",
+    "1099512961154",
+    "1099512960014",
+    "1099512958632",
+    "1099512960473",
+    "1099512960936",
+    "1099512961420",
+    "1099512960090",
+    "1099512959042",
+    "1099512960664",
+    "1099512961232",
+    "1099512959103",
+    "1099512958713",
+    "1099512960835",
+    "1099512958511",
+    "1099512959782",
+    "1099512961306",
+    "1099512960245",
+    "1099512960555",
+    "1099512960076",
+    "1099512960783",
+]
+MINE_RAFFLE_WINDOW_SECONDS = 2 * 60 * 60
+MINE_RAFFLE_INTERVAL_SECONDS = 2 * 60 * 60
+MINE_RAFFLE_ACTION_ACCOUNT = "notify.world"
+MINE_RAFFLE_ACTION_NAME = "logmine"
+MINE_RAFFLE_COLLECTION = "crptomonkeys"
 
 # The people who can drop unlimitted daily cryptomonKeys and have some other cryptomonKey drop related overrides
 CRYPTOMONKEY_DROP_ADMINS = [
