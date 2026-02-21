@@ -40,8 +40,24 @@ def extract_mine_participants(
     window_start: datetime,
     valid_specials: Optional[set[str]] = None,
 ) -> set[str]:
+    participants, _mine_count = extract_mine_window_stats(
+        actions=actions,
+        land_ids=land_ids,
+        window_start=window_start,
+        valid_specials=valid_specials,
+    )
+    return participants
+
+
+def extract_mine_window_stats(
+    actions: list[dict[str, Any]],
+    land_ids: Iterable[str],
+    window_start: datetime,
+    valid_specials: Optional[set[str]] = None,
+) -> tuple[set[str], int]:
     target_land_ids = {str(item) for item in land_ids}
     participants: set[str] = set()
+    mine_count = 0
     for action in actions:
         if not isinstance(action, dict):
             continue
@@ -61,8 +77,9 @@ def extract_mine_participants(
         if miner == "":
             continue
         if is_valid_wax_address(miner, valid_specials=valid_specials, case_sensitive=True):
+            mine_count += 1
             participants.add(miner)
-    return participants
+    return participants, mine_count
 
 
 def filter_participants_by_whitelist(participants: set[str], whitelist: set[str]) -> set[str]:
@@ -110,8 +127,9 @@ class MineRaffle(MetaCog):
     def _hyperion_time(value: datetime) -> str:
         return value.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000")
 
-    async def _collect_recent_participants(self, window_start: datetime, window_end: datetime) -> set[str]:
+    async def _collect_recent_participants(self, window_start: datetime, window_end: datetime) -> tuple[set[str], int]:
         participants: set[str] = set()
+        mine_count = 0
         skip = 0
         valid_specials = (
             self.bot.special_addr_list
@@ -135,13 +153,18 @@ class MineRaffle(MetaCog):
                 self.log(f"Mine raffle received invalid actions payload: {response}", "WARN")
                 break
 
-            participants.update(
-                extract_mine_participants(actions, self.land_ids, window_start, valid_specials=valid_specials)
+            action_participants, action_mine_count = extract_mine_window_stats(
+                actions,
+                self.land_ids,
+                window_start,
+                valid_specials=valid_specials,
             )
+            participants.update(action_participants)
+            mine_count += action_mine_count
             if len(actions) < MINE_RAFFLE_QUERY_LIMIT:
                 break
             skip += len(actions)
-        return participants
+        return participants, mine_count
 
     async def _announce_winner(
         self,
@@ -170,6 +193,7 @@ class MineRaffle(MetaCog):
             f"`{winner_wallet}`\n"
             f"Prize: [#{asset_id}](<https://neftyblocks.com/assets/{asset_id}>) "
             f"from `{MINE_RAFFLE_COLLECTION}`."
+            "[Click here](<https://www.cryptomonkeys.cc/monkeymining>) for details on how to participate."
         )
         try:
             await channel.send(msg)
@@ -181,6 +205,8 @@ class MineRaffle(MetaCog):
         window_start: datetime,
         window_end: datetime,
         whitelisted_users: int,
+        mines_in_window: int,
+        unique_miners_in_window: int,
     ) -> None:
         cinfo = get_collection_info(MINE_RAFFLE_COLLECTION)
         guild = self.bot.get_guild(cinfo.guild)
@@ -195,8 +221,9 @@ class MineRaffle(MetaCog):
         msg = (
             f"{cinfo.emoji} **Mining Raffle**\n"
             f"Window: {window_start_str} to {window_end_str} UTC\n"
-            "No eligible miners for the raffle were on the whitelist "
-            f"(out of {whitelisted_users} whitelisted users)"
+            f"No eligible miners for the raffle were on the whitelist out of {whitelisted_users} whitelisted "
+            f"addresses, {mines_in_window} mines and {unique_miners_in_window} unique miners.\n"
+            "[Click here](<https://www.cryptomonkeys.cc/monkeymining>) for details on how to participate."
         )
         try:
             await channel.send(msg)
@@ -221,11 +248,12 @@ class MineRaffle(MetaCog):
         window_start, window_end = get_latest_even_hour_window(datetime.now(timezone.utc))
         if self._last_processed_window_end == window_end:
             return
-        participants = await self._collect_recent_participants(window_start, window_end)
+        participants, mine_count = await self._collect_recent_participants(window_start, window_end)
         if len(participants) == 0:
             self.log(f"Mine raffle window {window_start} to {window_end}: no eligible miners found.")
             self._last_processed_window_end = window_end
             return
+        unique_miners_in_window = len(participants)
         wallet_to_discord_ids = await self.bot.green_api.get_monkeyconnect_wallet_to_discord_ids()
         monkeyconnect_whitelist = set(wallet_to_discord_ids.keys())
         participants = filter_participants_by_whitelist(participants, monkeyconnect_whitelist)
@@ -238,6 +266,8 @@ class MineRaffle(MetaCog):
                 window_start=window_start,
                 window_end=window_end,
                 whitelisted_users=len(monkeyconnect_whitelist),
+                mines_in_window=mine_count,
+                unique_miners_in_window=unique_miners_in_window,
             )
             self._last_processed_window_end = window_end
             return
@@ -251,7 +281,7 @@ class MineRaffle(MetaCog):
         await self.bot.wax_con.transfer_assets(
             receiver=winner_wallet,
             asset_ids=[asset_id],
-            sender="Mine raffle task",
+            sender="monKeymining raffle",
             sender_ac=MINE_RAFFLE_COLLECTION,
             memo=f"Mining raffle reward ({window_end.strftime('%Y-%m-%d %H:%M UTC')})",
         )

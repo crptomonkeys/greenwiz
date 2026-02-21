@@ -10,6 +10,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "greenwiz"))
 from cogs.mine_raffle import (
     MineRaffle,
     extract_mine_participants,
+    extract_mine_window_stats,
     filter_participants_by_whitelist,
     format_winner_discord,
     get_latest_even_hour_window,
@@ -51,6 +52,34 @@ def test_extract_mine_participants_filters_land_id_and_time_window() -> None:
     )
 
     assert participants == {"b52qw.wam"}
+
+
+def test_extract_mine_window_stats_counts_mines_and_unique_miners() -> None:
+    window_start = datetime(2025, 11, 12, 0, 0, 0, tzinfo=timezone.utc)
+    actions = [
+        {
+            "timestamp": "2025-11-12T00:10:00.000",
+            "act": {"data": {"miner": "b52qw.wam", "land_id": "1099512959648"}},
+        },
+        {
+            "timestamp": "2025-11-12T00:40:00.000",
+            "act": {"data": {"miner": "b52qw.wam", "land_id": "1099512959648"}},
+        },
+        {
+            "timestamp": "2025-11-12T01:20:00.000",
+            "act": {"data": {"miner": "4h.qy.wam", "land_id": "1099512959648"}},
+        },
+    ]
+
+    participants, mine_count = extract_mine_window_stats(
+        actions=actions,
+        land_ids={"1099512959648"},
+        window_start=window_start,
+        valid_specials={"wam"},
+    )
+
+    assert mine_count == 3
+    assert participants == {"b52qw.wam", "4h.qy.wam"}
 
 
 def test_filter_participants_by_whitelist() -> None:
@@ -109,8 +138,8 @@ def test_run_raffle_announces_when_no_whitelisted_eligible_miners(monkeypatch) -
     )
     raffle.log = lambda *_args, **_kwargs: None
 
-    async def fake_collect(_window_start: datetime, _window_end: datetime) -> set[str]:
-        return {"notonlist.wam"}
+    async def fake_collect(_window_start: datetime, _window_end: datetime) -> tuple[set[str], int]:
+        return {"notonlist.wam"}, 5
 
     raffle._collect_recent_participants = fake_collect
     announce_mock = AsyncMock()
@@ -122,6 +151,8 @@ def test_run_raffle_announces_when_no_whitelisted_eligible_miners(monkeypatch) -
         window_start=window_start,
         window_end=window_end,
         whitelisted_users=3,
+        mines_in_window=5,
+        unique_miners_in_window=1,
     )
     assert raffle._last_processed_window_end == window_end
 
@@ -160,11 +191,15 @@ def test_announce_no_whitelist_eligible_miners_posts_window_message(monkeypatch)
             window_start=window_start,
             window_end=window_end,
             whitelisted_users=27,
+            mines_in_window=52,
+            unique_miners_in_window=18,
         )
     )
 
     assert len(channel.messages) == 1
     assert (
-        "No eligible miners for the raffle were on the whitelist (out of 27 whitelisted users)"
+        "No eligible miners for the raffle were on the whitelist (out of 27 whitelisted addresses)"
         in channel.messages[0]
     )
+    assert "Mines in raffle window: 52" in channel.messages[0]
+    assert "Unique miners in raffle window: 18" in channel.messages[0]
