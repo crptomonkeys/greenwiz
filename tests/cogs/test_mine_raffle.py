@@ -1,13 +1,18 @@
 import sys
+import asyncio
 from datetime import datetime, timezone
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "greenwiz"))
 
 from cogs.mine_raffle import (
+    MineRaffle,
     extract_mine_participants,
     filter_participants_by_whitelist,
     format_winner_discord,
+    get_latest_even_hour_window,
     parse_hyperion_timestamp,
 )
 
@@ -59,3 +64,107 @@ def test_filter_participants_by_whitelist() -> None:
 
 def test_format_winner_discord() -> None:
     assert format_winner_discord([753349150833115311]) == ("<@753349150833115311> (`753349150833115311`)")
+
+
+def test_get_latest_even_hour_window_aligns_to_even_hours() -> None:
+    window_start, window_end = get_latest_even_hour_window(
+        datetime(2025, 11, 12, 17, 41, 33, tzinfo=timezone.utc)
+    )
+
+    assert window_start == datetime(2025, 11, 12, 14, 0, 0, tzinfo=timezone.utc)
+    assert window_end == datetime(2025, 11, 12, 16, 0, 0, tzinfo=timezone.utc)
+
+
+def test_get_latest_even_hour_window_handles_boundary() -> None:
+    window_start, window_end = get_latest_even_hour_window(
+        datetime(2025, 11, 12, 18, 0, 1, tzinfo=timezone.utc)
+    )
+
+    assert window_start == datetime(2025, 11, 12, 16, 0, 0, tzinfo=timezone.utc)
+    assert window_end == datetime(2025, 11, 12, 18, 0, 0, tzinfo=timezone.utc)
+
+
+def test_run_raffle_announces_when_no_whitelisted_eligible_miners(monkeypatch) -> None:
+    window_start = datetime(2026, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
+    window_end = datetime(2026, 1, 1, 2, 0, 0, tzinfo=timezone.utc)
+    monkeypatch.setattr(
+        "cogs.mine_raffle.get_latest_even_hour_window",
+        lambda now: (window_start, window_end),
+    )
+
+    async def fake_get_wallet_map() -> dict[str, set[int]]:
+        return {
+            "alice.wam": {1},
+            "bob.wam": {2},
+            "charlie.wam": {3},
+        }
+
+    raffle = MineRaffle.__new__(MineRaffle)
+    raffle.land_ids = {"1099512959648"}
+    raffle._disabled_logged = False
+    raffle._last_processed_window_end = None
+    raffle.bot = SimpleNamespace(
+        wax_con=object(),
+        green_api=SimpleNamespace(get_monkeyconnect_wallet_to_discord_ids=fake_get_wallet_map),
+    )
+    raffle.log = lambda *_args, **_kwargs: None
+
+    async def fake_collect(_window_start: datetime, _window_end: datetime) -> set[str]:
+        return {"notonlist.wam"}
+
+    raffle._collect_recent_participants = fake_collect
+    announce_mock = AsyncMock()
+    raffle._announce_no_whitelist_eligible_miners = announce_mock
+
+    asyncio.run(raffle._run_raffle())
+
+    announce_mock.assert_awaited_once_with(
+        window_start=window_start,
+        window_end=window_end,
+        whitelisted_users=3,
+    )
+    assert raffle._last_processed_window_end == window_end
+
+
+def test_announce_no_whitelist_eligible_miners_posts_window_message(monkeypatch) -> None:
+    class FakeChannel:
+        def __init__(self) -> None:
+            self.messages: list[str] = []
+
+        async def send(self, msg: str) -> None:
+            self.messages.append(msg)
+
+    class FakeGuild:
+        def __init__(self, channel: FakeChannel) -> None:
+            self.channel = channel
+
+        def get_channel(self, _channel_id: int):
+            return self.channel
+
+    channel = FakeChannel()
+    guild = FakeGuild(channel)
+    raffle = MineRaffle.__new__(MineRaffle)
+    raffle.bot = SimpleNamespace(get_guild=lambda _guild_id: guild)
+
+    monkeypatch.setattr(
+        "cogs.mine_raffle.get_collection_info",
+        lambda _collection: SimpleNamespace(guild=123, announce_ch=456, emoji=":pick:"),
+    )
+    monkeypatch.setattr("cogs.mine_raffle.discord.TextChannel", FakeChannel)
+    monkeypatch.setattr("cogs.mine_raffle.discord.Thread", FakeChannel)
+
+    window_start = datetime(2026, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
+    window_end = datetime(2026, 1, 1, 2, 0, 0, tzinfo=timezone.utc)
+    asyncio.run(
+        raffle._announce_no_whitelist_eligible_miners(
+            window_start=window_start,
+            window_end=window_end,
+            whitelisted_users=27,
+        )
+    )
+
+    assert len(channel.messages) == 1
+    assert (
+        "No eligible miners for the raffle were on the whitelist (out of 27 whitelisted users)"
+        in channel.messages[0]
+    )

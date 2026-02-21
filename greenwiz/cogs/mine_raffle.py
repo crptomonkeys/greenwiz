@@ -1,6 +1,7 @@
 import random
 import traceback
 from datetime import datetime, timedelta, timezone
+from datetime import time as dtime
 from typing import Any, Iterable, Optional
 
 import discord
@@ -11,15 +12,14 @@ from utils.settings import (
     MINE_RAFFLE_ACTION_ACCOUNT,
     MINE_RAFFLE_ACTION_NAME,
     MINE_RAFFLE_COLLECTION,
-    MINE_RAFFLE_INTERVAL_SECONDS,
     MINE_RAFFLE_LAND_IDS,
-    MINE_RAFFLE_WINDOW_SECONDS,
 )
 from wax_chain.collection_config import get_collection_info
 from wax_chain.wax_addresses import is_valid_wax_address
 
 MINE_RAFFLE_QUERY_LIMIT = 500
 MINE_RAFFLE_QUERY_CAP = 5000
+MINE_RAFFLE_TIMES_UTC = [dtime(hour=hour, minute=0, second=0, tzinfo=timezone.utc) for hour in range(0, 24, 2)]
 
 
 def parse_hyperion_timestamp(timestamp: str) -> Optional[datetime]:
@@ -75,7 +75,20 @@ def format_winner_discord(discord_ids: list[int]) -> str:
     if len(discord_ids) < 1:
         return "Unknown"
     winner_id = discord_ids[0]
-    return f"<@{winner_id}>"
+    return f"<@{winner_id}> (`{winner_id}`)"
+
+
+def get_latest_even_hour_window(now: datetime) -> tuple[datetime, datetime]:
+    """Return the latest closed two-hour UTC window aligned to even-hour boundaries."""
+    window_end = now.astimezone(timezone.utc).replace(
+        minute=0,
+        second=0,
+        microsecond=0,
+    )
+    if window_end.hour % 2 != 0:
+        window_end -= timedelta(hours=1)
+    window_start = window_end - timedelta(hours=2)
+    return window_start, window_end
 
 
 class MineRaffle(MetaCog):
@@ -84,9 +97,10 @@ class MineRaffle(MetaCog):
         self.land_ids = {str(land_id).strip() for land_id in MINE_RAFFLE_LAND_IDS if str(land_id).strip()}
         if not hasattr(self.bot, "green_api"):
             self.bot.green_api = GreenApi(self.session)
+        self._last_processed_window_end: Optional[datetime] = None
         self._disabled_logged = False
         self.mine_raffle.start()
-        self.bot.log("Started mine raffle task (1 raffle every 2 hours).", self.bot.debug)
+        self.bot.log("Started mine raffle task (1 raffle every 2 hours UTC).", self.bot.debug)
 
     def cog_unload(self):
         self.mine_raffle.cancel()
@@ -162,6 +176,33 @@ class MineRaffle(MetaCog):
         except (discord.Forbidden, discord.HTTPException):
             pass
 
+    async def _announce_no_whitelist_eligible_miners(
+        self,
+        window_start: datetime,
+        window_end: datetime,
+        whitelisted_users: int,
+    ) -> None:
+        cinfo = get_collection_info(MINE_RAFFLE_COLLECTION)
+        guild = self.bot.get_guild(cinfo.guild)
+        if guild is None:
+            return
+        channel = guild.get_channel(cinfo.announce_ch)
+        if channel is None or not isinstance(channel, (discord.TextChannel, discord.Thread)):
+            return
+
+        window_start_str = window_start.strftime("%Y-%m-%d %H:%M")
+        window_end_str = window_end.strftime("%Y-%m-%d %H:%M")
+        msg = (
+            f"{cinfo.emoji} **Mining Raffle**\n"
+            f"Window: {window_start_str} to {window_end_str} UTC\n"
+            "No eligible miners for the raffle were on the whitelist "
+            f"(out of {whitelisted_users} whitelisted users)"
+        )
+        try:
+            await channel.send(msg)
+        except (discord.Forbidden, discord.HTTPException):
+            pass
+
     async def _run_raffle(self) -> None:
         if len(self.land_ids) == 0:
             if not self._disabled_logged:
@@ -177,11 +218,13 @@ class MineRaffle(MetaCog):
             self.log("Mine raffle skipped because wax_con is unavailable.", "WARN")
             return
 
-        window_end = datetime.now(timezone.utc)
-        window_start = window_end - timedelta(seconds=MINE_RAFFLE_WINDOW_SECONDS)
+        window_start, window_end = get_latest_even_hour_window(datetime.now(timezone.utc))
+        if self._last_processed_window_end == window_end:
+            return
         participants = await self._collect_recent_participants(window_start, window_end)
         if len(participants) == 0:
             self.log(f"Mine raffle window {window_start} to {window_end}: no eligible miners found.")
+            self._last_processed_window_end = window_end
             return
         wallet_to_discord_ids = await self.bot.green_api.get_monkeyconnect_wallet_to_discord_ids()
         monkeyconnect_whitelist = set(wallet_to_discord_ids.keys())
@@ -191,6 +234,12 @@ class MineRaffle(MetaCog):
                 f"Mine raffle window {window_start} to {window_end}: "
                 "no eligible miners were on the monKeyconnect whitelist."
             )
+            await self._announce_no_whitelist_eligible_miners(
+                window_start=window_start,
+                window_end=window_end,
+                whitelisted_users=len(monkeyconnect_whitelist),
+            )
+            self._last_processed_window_end = window_end
             return
 
         winner_wallet = random.choice(sorted(participants))
@@ -215,8 +264,9 @@ class MineRaffle(MetaCog):
             window_start=window_start,
             window_end=window_end,
         )
+        self._last_processed_window_end = window_end
 
-    @tasks.loop(seconds=MINE_RAFFLE_INTERVAL_SECONDS)
+    @tasks.loop(time=MINE_RAFFLE_TIMES_UTC)
     async def mine_raffle(self):
         try:
             await self._run_raffle()
