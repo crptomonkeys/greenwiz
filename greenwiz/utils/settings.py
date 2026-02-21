@@ -41,6 +41,10 @@ BANANO_GUID = 415935345075421194
 CM_GUID = 733122024448458784
 # The endpoint to get special wax addresses from
 QUERY_SPECIALS_URL = "https://eosauthority.com/api/spa/bidnames?dir=asc&limit=1000&network=wax&page="
+# Endpoint to fetch monkeyconnect-linked discord->wax mappings.
+MONKEYCONNECT_DISCORD_USER_LIST_WAX_GET = (
+    "https://connect.cryptomonkeys.cc/accounts/api/v1/discord_user_list_wax/?code="
+)
 # The endpoint to get upland recent visitors from.
 UPLAND_QUERY_URL = "https://api.upland.me/teleports/visitors/"
 # The list of upland property ids eligible for metaforce and cryptomonkeys rewards, respectively.

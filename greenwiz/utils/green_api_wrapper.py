@@ -9,6 +9,8 @@ from utils.settings import (
     BLACKLIST_AUTH_CODE,
     AW_BLACKLIST_AUTH_KEY,
     CMSTATS_SERVER,
+    DISCORD_USER_LIST_AUTH_CODE,
+    MONKEYCONNECT_DISCORD_USER_LIST_WAX_GET,
 )
 from utils.util import utcnow
 
@@ -32,7 +34,10 @@ class GreenApi:
         self.url_base = f"http://{self.server}"
         self.cached_blacklist: Set[str] = set()
         self.cached_awblacklist: Set[str] = set()
+        self.cached_monkeyconnect_wax_users: Set[str] = set()
+        self.cached_monkeyconnect_wallet_to_discord_ids: dict[str, set[int]] = {}
         self.cache_updated = 0
+        self.monkeyconnect_cache_updated = 0
 
     async def all_miners_for_cycle(
         self, cycle: Optional[int] = None
@@ -145,6 +150,77 @@ class GreenApi:
                 )
 
         return self.cached_blacklist
+
+    async def get_monkeyconnect_wallet_to_discord_ids(
+        self, force: bool = False, expiry: float = 300.0
+    ) -> dict[str, set[int]]:
+        """Fetch monkeyconnect discord->wax mappings and return wallet->discord_ids."""
+        if (
+            not force
+            and utcnow().timestamp() - self.monkeyconnect_cache_updated < expiry
+        ):
+            return self.cached_monkeyconnect_wallet_to_discord_ids
+
+        if not DISCORD_USER_LIST_AUTH_CODE:
+            print(
+                "DISCORD_USER_LIST_AUTH_CODE is empty, returning cached monkeyconnect "
+                "wax user list."
+            )
+            return self.cached_monkeyconnect_wallet_to_discord_ids
+
+        url = f"{MONKEYCONNECT_DISCORD_USER_LIST_WAX_GET}{DISCORD_USER_LIST_AUTH_CODE}"
+        try:
+            response = await self.get_resp(url)
+            if not isinstance(response, dict) or not response.get("success"):
+                raise GreenApiException(
+                    "monKeyconnect user list request did not return success=true."
+                )
+
+            data = response.get("data", [])
+            if not isinstance(data, list):
+                raise GreenApiException(
+                    "monKeyconnect user list request returned non-list data."
+                )
+
+            wallet_to_discord_ids: dict[str, set[int]] = {}
+            for item in data:
+                if not isinstance(item, dict):
+                    continue
+                for discord_id, wallet in item.items():
+                    if not isinstance(wallet, str):
+                        continue
+                    try:
+                        parsed_discord_id = int(str(discord_id).strip())
+                    except ValueError:
+                        continue
+                    address = wallet.replace(" ", "").strip().lower()
+                    if address == "":
+                        continue
+                    wallet_to_discord_ids.setdefault(address, set()).add(
+                        parsed_discord_id
+                    )
+
+            self.cached_monkeyconnect_wallet_to_discord_ids = wallet_to_discord_ids
+            self.cached_monkeyconnect_wax_users = set(wallet_to_discord_ids.keys())
+            self.monkeyconnect_cache_updated = int(utcnow().timestamp())
+        except (aiohttp.web_exceptions.HTTPError, GreenApiException) as e:
+            print(
+                "Encountered an error attempting to fetch the monKeyconnect whitelist, "
+                f"returning cached list. {e}"
+            )
+
+        return self.cached_monkeyconnect_wallet_to_discord_ids
+
+    async def get_monkeyconnect_wax_users(
+        self, force: bool = False, expiry: float = 300.0
+    ) -> Set[str]:
+        """Fetch the monkeyconnect discord user list wax mappings and return just the wallet set."""
+        wallet_to_discord_ids = await self.get_monkeyconnect_wallet_to_discord_ids(
+            force=force, expiry=expiry
+        )
+        if len(wallet_to_discord_ids) < 1:
+            return self.cached_monkeyconnect_wax_users
+        return set(wallet_to_discord_ids.keys())
 
     async def awblacklist_add(self, address: str) -> dict[str, Any]:
         """Add a wax address to the blacklist"""

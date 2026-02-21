@@ -5,7 +5,7 @@ from typing import Any, Iterable, Optional
 
 import discord
 from discord.ext import tasks  # type: ignore
-
+from utils.green_api_wrapper import GreenApi
 from utils.meta_cog import MetaCog
 from utils.settings import (
     MINE_RAFFLE_ACTION_ACCOUNT,
@@ -60,24 +60,33 @@ def extract_mine_participants(
         miner = str(data.get("miner", "")).strip().lower()
         if miner == "":
             continue
-        if is_valid_wax_address(
-            miner, valid_specials=valid_specials, case_sensitive=True
-        ):
+        if is_valid_wax_address(miner, valid_specials=valid_specials, case_sensitive=True):
             participants.add(miner)
     return participants
+
+
+def filter_participants_by_whitelist(participants: set[str], whitelist: set[str]) -> set[str]:
+    if len(whitelist) < 1:
+        return set()
+    return {entry for entry in participants if entry in whitelist}
+
+
+def format_winner_discord(discord_ids: list[int]) -> str:
+    if len(discord_ids) < 1:
+        return "Unknown"
+    winner_id = discord_ids[0]
+    return f"<@{winner_id}>"
 
 
 class MineRaffle(MetaCog):
     def __init__(self, bot):
         super().__init__(bot)
-        self.land_ids = {
-            str(land_id).strip() for land_id in MINE_RAFFLE_LAND_IDS if str(land_id).strip()
-        }
+        self.land_ids = {str(land_id).strip() for land_id in MINE_RAFFLE_LAND_IDS if str(land_id).strip()}
+        if not hasattr(self.bot, "green_api"):
+            self.bot.green_api = GreenApi(self.session)
         self._disabled_logged = False
         self.mine_raffle.start()
-        self.bot.log(
-            "Started mine raffle task (1 raffle every 2 hours).", self.bot.debug
-        )
+        self.bot.log("Started mine raffle task (1 raffle every 2 hours).", self.bot.debug)
 
     def cog_unload(self):
         self.mine_raffle.cancel()
@@ -87,15 +96,12 @@ class MineRaffle(MetaCog):
     def _hyperion_time(value: datetime) -> str:
         return value.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000")
 
-    async def _collect_recent_participants(
-        self, window_start: datetime, window_end: datetime
-    ) -> set[str]:
+    async def _collect_recent_participants(self, window_start: datetime, window_end: datetime) -> set[str]:
         participants: set[str] = set()
         skip = 0
         valid_specials = (
             self.bot.special_addr_list
-            if hasattr(self.bot, "special_addr_list")
-            and isinstance(self.bot.special_addr_list, set)
+            if hasattr(self.bot, "special_addr_list") and isinstance(self.bot.special_addr_list, set)
             else None
         )
         while skip < MINE_RAFFLE_QUERY_CAP:
@@ -112,15 +118,11 @@ class MineRaffle(MetaCog):
             )
             actions = response.get("actions", [])
             if not isinstance(actions, list):
-                self.log(
-                    f"Mine raffle received invalid actions payload: {response}", "WARN"
-                )
+                self.log(f"Mine raffle received invalid actions payload: {response}", "WARN")
                 break
 
             participants.update(
-                extract_mine_participants(
-                    actions, self.land_ids, window_start, valid_specials=valid_specials
-                )
+                extract_mine_participants(actions, self.land_ids, window_start, valid_specials=valid_specials)
             )
             if len(actions) < MINE_RAFFLE_QUERY_LIMIT:
                 break
@@ -129,7 +131,8 @@ class MineRaffle(MetaCog):
 
     async def _announce_winner(
         self,
-        winner: str,
+        winner_wallet: str,
+        winner_discord_ids: list[int],
         asset_id: int,
         entrants: int,
         window_start: datetime,
@@ -149,7 +152,8 @@ class MineRaffle(MetaCog):
             f"{cinfo.emoji} **Mining Raffle Winner**\n"
             f"Window: {window_start_str} to {window_end_str} UTC\n"
             f"Eligible miners: {entrants}\n"
-            f"Winner: `{winner}`\n"
+            f"Winner: {format_winner_discord(winner_discord_ids)} - "
+            f"`{winner_wallet}`\n"
             f"Prize: [#{asset_id}](<https://neftyblocks.com/assets/{asset_id}>) "
             f"from `{MINE_RAFFLE_COLLECTION}`."
         )
@@ -177,29 +181,35 @@ class MineRaffle(MetaCog):
         window_start = window_end - timedelta(seconds=MINE_RAFFLE_WINDOW_SECONDS)
         participants = await self._collect_recent_participants(window_start, window_end)
         if len(participants) == 0:
+            self.log(f"Mine raffle window {window_start} to {window_end}: no eligible miners found.")
+            return
+        wallet_to_discord_ids = await self.bot.green_api.get_monkeyconnect_wallet_to_discord_ids()
+        monkeyconnect_whitelist = set(wallet_to_discord_ids.keys())
+        participants = filter_participants_by_whitelist(participants, monkeyconnect_whitelist)
+        if len(participants) == 0:
             self.log(
-                f"Mine raffle window {window_start} to {window_end}: no eligible miners found."
+                f"Mine raffle window {window_start} to {window_end}: "
+                "no eligible miners were on the monKeyconnect whitelist."
             )
             return
 
-        winner = random.choice(sorted(participants))
+        winner_wallet = random.choice(sorted(participants))
+        winner_discord_ids = sorted(wallet_to_discord_ids.get(winner_wallet, set()))
         selected_assets = await self.bot.wax_con.get_random_assets_to_send(
-            user=winner, num=1, collection=MINE_RAFFLE_COLLECTION
+            user=winner_wallet, num=1, collection=MINE_RAFFLE_COLLECTION
         )
         asset_id = selected_assets[0].asset_id
         await self.bot.wax_con.transfer_assets(
-            receiver=winner,
+            receiver=winner_wallet,
             asset_ids=[asset_id],
             sender="Mine raffle task",
             sender_ac=MINE_RAFFLE_COLLECTION,
             memo=f"Mining raffle reward ({window_end.strftime('%Y-%m-%d %H:%M UTC')})",
         )
-        self.log(
-            f"Mine raffle transferred asset {asset_id} to {winner} "
-            f"from {len(participants)} entrants."
-        )
+        self.log(f"Mine raffle transferred asset {asset_id} to {winner_wallet} from {len(participants)} entrants.")
         await self._announce_winner(
-            winner=winner,
+            winner_wallet=winner_wallet,
+            winner_discord_ids=winner_discord_ids,
             asset_id=asset_id,
             entrants=len(participants),
             window_start=window_start,

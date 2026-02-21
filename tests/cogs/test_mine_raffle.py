@@ -1,10 +1,15 @@
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
-import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "greenwiz"))
 
-from cogs.mine_raffle import extract_mine_participants, parse_hyperion_timestamp
+from cogs.mine_raffle import (
+    extract_mine_participants,
+    filter_participants_by_whitelist,
+    format_winner_discord,
+    parse_hyperion_timestamp,
+)
 
 
 def test_parse_hyperion_timestamp_handles_milliseconds_without_timezone() -> None:
@@ -41,3 +46,16 @@ def test_extract_mine_participants_filters_land_id_and_time_window() -> None:
     )
 
     assert participants == {"b52qw.wam"}
+
+
+def test_filter_participants_by_whitelist() -> None:
+    participants = {"49815.wam", "4h.qy.wam", "mconstant.gm"}
+    whitelist = {"4h.qy.wam", "mconstant.gm"}
+
+    filtered = filter_participants_by_whitelist(participants, whitelist)
+
+    assert filtered == {"4h.qy.wam", "mconstant.gm"}
+
+
+def test_format_winner_discord() -> None:
+    assert format_winner_discord([753349150833115311]) == ("<@753349150833115311> (`753349150833115311`)")
