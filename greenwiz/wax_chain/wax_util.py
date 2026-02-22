@@ -68,6 +68,12 @@ from wax_chain.wax_market_utils import (
 
 wax_history_api = "/v2/history/get_transaction"
 wax_actions_api = "/v2/history/get_actions"
+HYPERION_429_COOLDOWN_SECONDS = 10 * 60
+PREFERRED_HYPERION_ENDPOINTS = [
+    "https://api.waxsweden.org",
+    "https://wax.eosphere.io",
+    "https://wax.cryptolions.io",
+]
 # 'https://wax.eu.eosamsterdam.net/', 'https://api.wax.liquidstudios.io/', 'https://api.wax.bountyblok.io/'
 full_api_weighted_list = [
     {"node_url": "https://wax.eu.eosamsterdam.net", "type": "api", "weight": 10},
@@ -235,7 +241,32 @@ def configure_wax_endpoints(full_weighted_list):
             atomic_endpoints.append(entry["node_url"])
         elif entry["type"] == "hyperion":
             hyperion_endpoints.append(entry["node_url"])
+    hyperion_endpoints = prioritize_endpoints(
+        endpoints=hyperion_endpoints,
+        preferred_endpoints=PREFERRED_HYPERION_ENDPOINTS,
+    )
     return history_endpoints, api_endpoints, atomic_endpoints, hyperion_endpoints
+
+
+def prioritize_endpoints(endpoints: list[str], preferred_endpoints: list[str]) -> list[str]:
+    """Reorders endpoints so preferred entries appear first while preserving relative order otherwise."""
+    preferred_order = {
+        entry.rstrip("/"): index for index, entry in enumerate(preferred_endpoints)
+    }
+    unique_endpoints: list[str] = []
+    seen: set[str] = set()
+    for endpoint in endpoints:
+        normalized = endpoint.rstrip("/")
+        if normalized in seen:
+            continue
+        seen.add(normalized)
+        unique_endpoints.append(endpoint)
+    prioritized = sorted(
+        [entry for entry in unique_endpoints if entry.rstrip("/") in preferred_order],
+        key=lambda entry: preferred_order[entry.rstrip("/")],
+    )
+    remaining = [entry for entry in unique_endpoints if entry.rstrip("/") not in preferred_order]
+    return prioritized + remaining
 
 
 def format_wax_amount(amount):
@@ -613,6 +644,13 @@ class WaxConnection:
                         code = resp.status
                     if code >= 400:
                         attempts.append(f"{rpc.URL} -> status {code}")
+                        if code == 429:
+                            self.log(
+                                f"Hyperion endpoint {rpc.URL} returned 429. "
+                                f"Pausing {HYPERION_429_COOLDOWN_SECONDS} seconds before continuing.",
+                                "WARN",
+                            )
+                            await asyncio.sleep(HYPERION_429_COOLDOWN_SECONDS)
                         continue
                     if not isinstance(response, dict):
                         attempts.append(f"{rpc.URL} -> non-dict response")

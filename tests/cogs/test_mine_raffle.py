@@ -82,6 +82,155 @@ def test_extract_mine_window_stats_counts_mines_and_unique_miners() -> None:
     assert participants == {"b52qw.wam", "4h.qy.wam"}
 
 
+def test_collect_recent_participants_uses_time_cursor_with_subsecond_increment(monkeypatch) -> None:
+    monkeypatch.setattr("cogs.mine_raffle.MINE_RAFFLE_QUERY_LIMIT", 3)
+    monkeypatch.setattr("cogs.mine_raffle.MINE_RAFFLE_MAX_QUERY_REQUESTS", 20)
+
+    window_start = datetime(2026, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
+    window_end = datetime(2026, 1, 1, 0, 10, 0, tzinfo=timezone.utc)
+    after_start = MineRaffle._hyperion_time(window_start)
+    after_t1 = "2026-01-01T00:00:01.000"
+    after_t1_next = "2026-01-01T00:00:01.001"
+
+    responses_by_cursor: dict[str, list[dict[str, object]]] = {
+        after_start: [
+            {
+                "timestamp": after_t1,
+                "data": {"miner": "b52qw.wam", "land_id": "1099512959648"},
+                "transaction_id": "tx-1",
+            },
+            {
+                "timestamp": after_t1,
+                "data": {"miner": "4h.qy.wam", "land_id": "1099512959648"},
+                "transaction_id": "tx-2",
+            },
+            {
+                "timestamp": after_t1,
+                "data": {"miner": "mconstant.gm", "land_id": "1099512959648"},
+                "transaction_id": "tx-3",
+            },
+        ],
+        after_t1_next: [
+            {
+                "timestamp": "2026-01-01T00:00:02.000",
+                "data": {"miner": "huilinvoiach", "land_id": "1099512959648"},
+                "transaction_id": "tx-4",
+            },
+            {
+                "timestamp": "2026-01-01T00:00:02.000",
+                "data": {"miner": "qkzf2.wam", "land_id": "1099512959648"},
+                "transaction_id": "tx-5",
+            },
+            {
+                "timestamp": "2026-01-01T00:00:02.000",
+                "data": {"miner": "niranr111dg3", "land_id": "1099512959648"},
+                "transaction_id": "tx-6",
+            },
+        ],
+    }
+    observed_queries: list[str] = []
+    observed_has_skip: list[bool] = []
+
+    async def fake_get_hyperion_actions(query: dict[str, object]) -> dict[str, object]:
+        after = str(query["after"])
+        observed_queries.append(after)
+        observed_has_skip.append("skip" in query)
+        return {"total": {"value": 1, "relation": "eq"}, "simple_actions": responses_by_cursor.get(after, [])}
+
+    raffle = MineRaffle.__new__(MineRaffle)
+    raffle.land_ids = {"1099512959648"}
+    raffle.bot = SimpleNamespace(
+        wax_con=SimpleNamespace(get_hyperion_actions=fake_get_hyperion_actions),
+        special_addr_list={"wam"},
+    )
+    raffle.log = lambda *_args, **_kwargs: None
+
+    participants, mine_count = asyncio.run(
+        raffle._collect_recent_participants(
+            window_start=window_start,
+            window_end=window_end,
+        )
+    )
+
+    assert participants == {
+        "b52qw.wam",
+        "4h.qy.wam",
+        "mconstant.gm",
+        "huilinvoiach",
+        "qkzf2.wam",
+        "niranr111dg3",
+    }
+    assert mine_count == 6
+    assert observed_queries == [after_start, after_t1_next, "2026-01-01T00:00:02.001"]
+    assert observed_has_skip == [False, False, False]
+
+
+def test_collect_recent_participants_stops_when_page_crosses_window_end(monkeypatch) -> None:
+    monkeypatch.setattr("cogs.mine_raffle.MINE_RAFFLE_QUERY_LIMIT", 2)
+    monkeypatch.setattr("cogs.mine_raffle.MINE_RAFFLE_MAX_QUERY_REQUESTS", 10)
+
+    window_start = datetime(2026, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
+    window_end = datetime(2026, 1, 1, 0, 0, 5, tzinfo=timezone.utc)
+    after_start = MineRaffle._hyperion_time(window_start)
+    after_t1 = "2026-01-01T00:00:01.000"
+    after_t1_next = "2026-01-01T00:00:01.001"
+
+    responses_by_cursor: dict[str, list[dict[str, object]]] = {
+        after_start: [
+            {
+                "timestamp": after_t1,
+                "data": {"miner": "b52qw.wam", "land_id": "1099512959648"},
+                "transaction_id": "tx-1",
+            },
+            {
+                "timestamp": after_t1,
+                "data": {"miner": "4h.qy.wam", "land_id": "1099512959648"},
+                "transaction_id": "tx-2",
+            },
+        ],
+        after_t1_next: [
+            {
+                "timestamp": "2026-01-01T00:00:06.000",
+                "data": {"miner": "mconstant.gm", "land_id": "1099512959648"},
+                "transaction_id": "tx-3",
+            },
+            {
+                "timestamp": "2026-01-01T00:00:06.000",
+                "data": {"miner": "qkzf2.wam", "land_id": "1099512959648"},
+                "transaction_id": "tx-4",
+            },
+        ],
+    }
+    observed_queries: list[str] = []
+    observed_has_skip: list[bool] = []
+
+    async def fake_get_hyperion_actions(query: dict[str, object]) -> dict[str, object]:
+        after = str(query["after"])
+        observed_queries.append(after)
+        observed_has_skip.append("skip" in query)
+        return {"total": {"value": 1, "relation": "eq"}, "simple_actions": responses_by_cursor.get(after, [])}
+
+    raffle = MineRaffle.__new__(MineRaffle)
+    raffle.land_ids = {"1099512959648"}
+    raffle.bot = SimpleNamespace(
+        wax_con=SimpleNamespace(get_hyperion_actions=fake_get_hyperion_actions),
+        special_addr_list={"wam"},
+    )
+    raffle.log = lambda *_args, **_kwargs: None
+
+    participants, mine_count = asyncio.run(
+        raffle._collect_recent_participants(
+            window_start=window_start,
+            window_end=window_end,
+        )
+    )
+
+    assert participants == {"b52qw.wam", "4h.qy.wam"}
+    assert mine_count == 2
+    assert observed_queries == [after_start, after_t1_next]
+    assert observed_has_skip == [False, False]
+
+
 def test_filter_participants_by_whitelist() -> None:
     participants = {"49815.wam", "4h.qy.wam", "mconstant.gm"}
     whitelist = {"4h.qy.wam", "mconstant.gm"}
@@ -197,9 +346,5 @@ def test_announce_no_whitelist_eligible_miners_posts_window_message(monkeypatch)
     )
 
     assert len(channel.messages) == 1
-    assert (
-        "No eligible miners for the raffle were on the whitelist (out of 27 whitelisted addresses)"
-        in channel.messages[0]
-    )
-    assert "Mines in raffle window: 52" in channel.messages[0]
-    assert "Unique miners in raffle window: 18" in channel.messages[0]
+    assert "No eligible miners for the raffle were on the whitelist out of 27 whitelisted addresses" in channel.messages[0]
+    assert "52 mines and 18 unique miners" in channel.messages[0]

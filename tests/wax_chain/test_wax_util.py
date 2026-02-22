@@ -94,3 +94,49 @@ def test_get_hyperion_actions_rotates_hyperion_endpoints() -> None:
     assert response["actions"][0]["id"] == 1
     assert wax_con.session.calls[f"{bad_url}{wax_util.wax_actions_api}"] == 1
     assert wax_con.session.calls[f"{good_url}{wax_util.wax_actions_api}"] == 1
+
+
+def test_configure_wax_endpoints_prioritizes_preferred_hyperion_endpoints() -> None:
+    weighted_list = [
+        {"node_url": "https://wax.cryptolions.io", "type": "hyperion", "weight": 5},
+        {"node_url": "https://other.example", "type": "hyperion", "weight": 5},
+        {"node_url": "https://wax.eosphere.io", "type": "hyperion", "weight": 5},
+        {"node_url": "https://api.waxsweden.org", "type": "hyperion", "weight": 5},
+        {"node_url": "https://history.example", "type": "history", "weight": 5},
+    ]
+
+    _, _, _, hyperion_endpoints = wax_util.configure_wax_endpoints(weighted_list)
+
+    assert hyperion_endpoints == [
+        "https://api.waxsweden.org",
+        "https://wax.eosphere.io",
+        "https://wax.cryptolions.io",
+        "https://other.example",
+    ]
+
+
+def test_get_hyperion_actions_waits_10_minutes_on_429_then_falls_back(monkeypatch: MonkeyPatch) -> None:
+    async def no_sleep(seconds: float) -> None:
+        sleep_calls.append(seconds)
+        return None
+
+    sleep_calls: list[float] = []
+    monkeypatch.setattr(wax_util.asyncio, "sleep", no_sleep)
+
+    rate_limited_url = "https://rate-limited.example"
+    fallback_url = "https://fallback.example"
+    responses = {
+        f"{rate_limited_url}{wax_util.wax_actions_api}": [({"message": "Too Many Requests", "code": 429}, 429)],
+        f"{fallback_url}{wax_util.wax_actions_api}": [({"actions": [{"id": 99}]}, 200)],
+    }
+    wax_con = wax_util.WaxConnection.__new__(wax_util.WaxConnection)
+    wax_con.session = FakeSession(responses)
+    wax_con.hyperion_rpc = [SimpleNamespace(URL=rate_limited_url), SimpleNamespace(URL=fallback_url)]
+    wax_con.log = lambda *_args, **_kwargs: None
+
+    response = asyncio.run(wax_con.get_hyperion_actions({"account": "notify.world"}))
+
+    assert response["actions"][0]["id"] == 99
+    assert sleep_calls == [wax_util.HYPERION_429_COOLDOWN_SECONDS]
+    assert wax_con.session.calls[f"{rate_limited_url}{wax_util.wax_actions_api}"] == 1
+    assert wax_con.session.calls[f"{fallback_url}{wax_util.wax_actions_api}"] == 1

@@ -1,3 +1,4 @@
+import asyncio
 import random
 import traceback
 from datetime import datetime, timedelta, timezone
@@ -17,8 +18,10 @@ from utils.settings import (
 from wax_chain.collection_config import get_collection_info
 from wax_chain.wax_addresses import is_valid_wax_address
 
-MINE_RAFFLE_QUERY_LIMIT = 500
-MINE_RAFFLE_QUERY_CAP = 5000
+MINE_RAFFLE_QUERY_LIMIT = 1000
+MINE_RAFFLE_MAX_QUERY_REQUESTS = 2000
+MINE_RAFFLE_QUERY_RETRIES = 4
+MINE_RAFFLE_RETRY_BASE_SECONDS = 0.5
 MINE_RAFFLE_TIMES_UTC = [dtime(hour=hour, minute=0, second=0, tzinfo=timezone.utc) for hour in range(0, 24, 2)]
 
 
@@ -125,45 +128,157 @@ class MineRaffle(MetaCog):
 
     @staticmethod
     def _hyperion_time(value: datetime) -> str:
-        return value.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000")
+        return value.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3]
+
+    @staticmethod
+    def _extract_action_records(response: dict[str, Any]) -> Optional[list[dict[str, Any]]]:
+        simple_actions = response.get("simple_actions")
+        if isinstance(simple_actions, list):
+            return [entry for entry in simple_actions if isinstance(entry, dict)]
+        actions = response.get("actions")
+        if isinstance(actions, list):
+            return [entry for entry in actions if isinstance(entry, dict)]
+        return None
+
+    def _parse_mine_action(
+        self,
+        action: dict[str, Any],
+        window_start: datetime,
+        window_end: datetime,
+        valid_specials: Optional[set[str]],
+    ) -> Optional[tuple[str, tuple[str, str, str, str, str]]]:
+        timestamp = parse_hyperion_timestamp(str(action.get("timestamp", "")))
+        if timestamp is None or timestamp < window_start or timestamp > window_end:
+            return None
+
+        data = action.get("data")
+        if not isinstance(data, dict):
+            act = action.get("act")
+            if not isinstance(act, dict):
+                return None
+            data = act.get("data")
+            if not isinstance(data, dict):
+                return None
+
+        land_id = str(data.get("land_id", "")).strip()
+        if land_id not in self.land_ids:
+            return None
+
+        miner = str(data.get("miner", "")).strip().lower()
+        if miner == "":
+            return None
+        if not is_valid_wax_address(miner, valid_specials=valid_specials, case_sensitive=True):
+            return None
+
+        tx_id = str(action.get("transaction_id", "")).strip()
+        if tx_id == "":
+            tx_id = str(action.get("trx_id", "")).strip()
+        global_sequence = str(action.get("global_sequence", "")).strip()
+        block = str(action.get("block", "")).strip()
+        if block == "":
+            block = str(action.get("block_num", "")).strip()
+        dedupe_key = (
+            tx_id,
+            global_sequence,
+            block,
+            timestamp.strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
+            f"{miner}:{land_id}",
+        )
+        return miner, dedupe_key
+
+    async def _query_hyperion_actions(
+        self,
+        query_start: datetime,
+    ) -> dict[str, Any]:
+        params = {
+            "account": MINE_RAFFLE_ACTION_ACCOUNT,
+            "act.name": MINE_RAFFLE_ACTION_NAME,
+            "filter": f"{MINE_RAFFLE_ACTION_ACCOUNT}:{MINE_RAFFLE_ACTION_NAME}",
+            "after": self._hyperion_time(query_start),
+            "limit": MINE_RAFFLE_QUERY_LIMIT,
+            "sort": "asc",
+            "simple": "true",
+        }
+        retry_delay = MINE_RAFFLE_RETRY_BASE_SECONDS
+        for attempt in range(1, MINE_RAFFLE_QUERY_RETRIES + 1):
+            try:
+                return await self.bot.wax_con.get_hyperion_actions(params)
+            except Exception as e:
+                if attempt >= MINE_RAFFLE_QUERY_RETRIES:
+                    raise
+                self.log(
+                    "Mine raffle Hyperion query failed "
+                    f"(attempt {attempt}/{MINE_RAFFLE_QUERY_RETRIES}) with {type(e).__name__}::{e}. "
+                    f"Retrying in {retry_delay:.1f}s.",
+                    "WARN",
+                )
+                await asyncio.sleep(retry_delay)
+                retry_delay *= 2
+        raise RuntimeError("Mine raffle Hyperion query retries exhausted unexpectedly.")
 
     async def _collect_recent_participants(self, window_start: datetime, window_end: datetime) -> tuple[set[str], int]:
         participants: set[str] = set()
         mine_count = 0
-        skip = 0
+        seen_mines: set[tuple[str, str, str, str, str]] = set()
         valid_specials = (
             self.bot.special_addr_list
             if hasattr(self.bot, "special_addr_list") and isinstance(self.bot.special_addr_list, set)
             else None
         )
-        while skip < MINE_RAFFLE_QUERY_CAP:
-            response = await self.bot.wax_con.get_hyperion_actions(
-                {
-                    "account": MINE_RAFFLE_ACTION_ACCOUNT,
-                    "act.name": MINE_RAFFLE_ACTION_NAME,
-                    "after": self._hyperion_time(window_start),
-                    "before": self._hyperion_time(window_end),
-                    "limit": MINE_RAFFLE_QUERY_LIMIT,
-                    "skip": skip,
-                    "sort": "desc",
-                }
-            )
-            actions = response.get("actions", [])
-            if not isinstance(actions, list):
+        cursor_start = window_start
+        request_count = 0
+
+        while cursor_start <= window_end and request_count < MINE_RAFFLE_MAX_QUERY_REQUESTS:
+            response = await self._query_hyperion_actions(cursor_start)
+            request_count += 1
+            actions = self._extract_action_records(response)
+            if actions is None:
                 self.log(f"Mine raffle received invalid actions payload: {response}", "WARN")
                 break
+            if len(actions) == 0:
+                break
 
-            action_participants, action_mine_count = extract_mine_window_stats(
-                actions,
-                self.land_ids,
-                window_start,
-                valid_specials=valid_specials,
-            )
-            participants.update(action_participants)
-            mine_count += action_mine_count
+            latest_timestamp: Optional[datetime] = None
+            for action in actions:
+                action_timestamp = parse_hyperion_timestamp(str(action.get("timestamp", "")))
+                if action_timestamp is not None and (latest_timestamp is None or action_timestamp > latest_timestamp):
+                    latest_timestamp = action_timestamp
+
+                parsed = self._parse_mine_action(action, window_start, window_end, valid_specials)
+                if parsed is None:
+                    continue
+                miner, dedupe_key = parsed
+                if dedupe_key in seen_mines:
+                    continue
+                seen_mines.add(dedupe_key)
+                mine_count += 1
+                participants.add(miner)
+
+            if latest_timestamp is None:
+                self.log(
+                    "Mine raffle could not parse timestamps from Hyperion actions page; ending collection early.",
+                    "WARN",
+                )
+                break
+
+            if latest_timestamp > window_end:
+                break
+
+            next_cursor_start = latest_timestamp + timedelta(milliseconds=1)
+            if next_cursor_start <= cursor_start:
+                next_cursor_start = cursor_start + timedelta(milliseconds=1)
+            cursor_start = next_cursor_start
+
             if len(actions) < MINE_RAFFLE_QUERY_LIMIT:
                 break
-            skip += len(actions)
+
+        if request_count >= MINE_RAFFLE_MAX_QUERY_REQUESTS:
+            self.log(
+                f"Mine raffle hit query request cap ({MINE_RAFFLE_MAX_QUERY_REQUESTS}) for window "
+                f"{window_start} to {window_end}.",
+                "WARN",
+            )
+
         return participants, mine_count
 
     async def _announce_winner(
