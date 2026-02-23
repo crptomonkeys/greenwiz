@@ -305,10 +305,9 @@ class MineRaffle(MetaCog):
             f"{cinfo.emoji} **Mining Raffle Winner**\n"
             f"Window: {window_start_str} to {window_end_str} UTC\n"
             f"Eligible miners: {entrants}\n"
-            f"Winner: {format_winner_discord(winner_discord_ids)} - "
-            f"`{winner_wallet}`\n"
+            f"Winner: `{winner_wallet}`\n"
             f"Prize: [#{asset_id}](<https://neftyblocks.com/assets/{asset_id}>) "
-            f"from `{MINE_RAFFLE_COLLECTION}`."
+            f"from `{MINE_RAFFLE_COLLECTION}`. "
             "[Click here](<https://www.cryptomonkeys.cc/monkeymining>) for details on how to participate."
         )
         try:
