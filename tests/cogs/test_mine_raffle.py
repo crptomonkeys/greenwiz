@@ -306,6 +306,119 @@ def test_run_raffle_announces_when_no_whitelisted_eligible_miners(monkeypatch) -
     assert raffle._last_processed_window_end == window_end
 
 
+def test_run_raffle_excludes_recent_winners_and_records_new_winner(monkeypatch) -> None:
+    window_start = datetime(2026, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
+    window_end = datetime(2026, 1, 1, 2, 0, 0, tzinfo=timezone.utc)
+    monkeypatch.setattr(
+        "cogs.mine_raffle.get_latest_even_hour_window",
+        lambda now: (window_start, window_end),
+    )
+
+    async def fake_get_wallet_map() -> dict[str, set[int]]:
+        return {
+            "alice.wam": {1},
+            "bob.wam": {2},
+        }
+
+    storage = SimpleNamespace(
+        get_mine_raffle_wallets_with_recent_rewards=AsyncMock(return_value={"alice.wam"}),
+        record_mine_raffle_reward=AsyncMock(),
+    )
+    get_random_assets_mock = AsyncMock(return_value=[SimpleNamespace(asset_id=123456)])
+    transfer_assets_mock = AsyncMock()
+
+    raffle = MineRaffle.__new__(MineRaffle)
+    raffle.land_ids = {"1099512959648"}
+    raffle._disabled_logged = False
+    raffle._last_processed_window_end = None
+    raffle.bot = SimpleNamespace(
+        wax_con=SimpleNamespace(
+            get_random_assets_to_send=get_random_assets_mock,
+            transfer_assets=transfer_assets_mock,
+        ),
+        green_api=SimpleNamespace(get_monkeyconnect_wallet_to_discord_ids=fake_get_wallet_map),
+        storage={None: storage},
+    )
+    raffle.log = lambda *_args, **_kwargs: None
+
+    async def fake_collect(_window_start: datetime, _window_end: datetime) -> tuple[set[str], int]:
+        return {"alice.wam", "bob.wam"}, 4
+
+    raffle._collect_recent_participants = fake_collect
+    raffle._announce_winner = AsyncMock()
+
+    asyncio.run(raffle._run_raffle())
+
+    storage.get_mine_raffle_wallets_with_recent_rewards.assert_awaited_once()
+    get_random_assets_mock.assert_awaited_once_with(user="bob.wam", num=1, collection="crptomonkeys")
+    transfer_assets_mock.assert_awaited_once_with(
+        receiver="bob.wam",
+        asset_ids=[123456],
+        sender="monKeymining raffle",
+        sender_ac="crptomonkeys",
+        memo="Mining raffle reward (2026-01-01 02:00 UTC)",
+    )
+    storage.record_mine_raffle_reward.assert_awaited_once()
+    assert storage.record_mine_raffle_reward.await_args.kwargs["wallet"] == "bob.wam"
+    raffle._announce_winner.assert_awaited_once()
+    assert raffle._last_processed_window_end == window_end
+
+
+def test_run_raffle_skips_when_all_whitelisted_miners_are_recent_winners(monkeypatch) -> None:
+    window_start = datetime(2026, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
+    window_end = datetime(2026, 1, 1, 2, 0, 0, tzinfo=timezone.utc)
+    monkeypatch.setattr(
+        "cogs.mine_raffle.get_latest_even_hour_window",
+        lambda now: (window_start, window_end),
+    )
+
+    async def fake_get_wallet_map() -> dict[str, set[int]]:
+        return {"alice.wam": {1}}
+
+    storage = SimpleNamespace(
+        get_mine_raffle_wallets_with_recent_rewards=AsyncMock(return_value={"alice.wam"}),
+        record_mine_raffle_reward=AsyncMock(),
+    )
+    get_random_assets_mock = AsyncMock()
+    transfer_assets_mock = AsyncMock()
+
+    raffle = MineRaffle.__new__(MineRaffle)
+    raffle.land_ids = {"1099512959648"}
+    raffle._disabled_logged = False
+    raffle._last_processed_window_end = None
+    raffle.bot = SimpleNamespace(
+        wax_con=SimpleNamespace(
+            get_random_assets_to_send=get_random_assets_mock,
+            transfer_assets=transfer_assets_mock,
+        ),
+        green_api=SimpleNamespace(get_monkeyconnect_wallet_to_discord_ids=fake_get_wallet_map),
+        storage={None: storage},
+    )
+    raffle.log = lambda *_args, **_kwargs: None
+
+    async def fake_collect(_window_start: datetime, _window_end: datetime) -> tuple[set[str], int]:
+        return {"alice.wam"}, 1
+
+    raffle._collect_recent_participants = fake_collect
+    raffle._announce_winner = AsyncMock()
+    raffle._announce_all_eligible_in_cooldown = AsyncMock()
+
+    asyncio.run(raffle._run_raffle())
+
+    storage.get_mine_raffle_wallets_with_recent_rewards.assert_awaited_once()
+    get_random_assets_mock.assert_not_awaited()
+    transfer_assets_mock.assert_not_awaited()
+    storage.record_mine_raffle_reward.assert_not_awaited()
+    raffle._announce_winner.assert_not_awaited()
+    raffle._announce_all_eligible_in_cooldown.assert_awaited_once_with(
+        window_start=window_start,
+        window_end=window_end,
+        eligible_whitelisted_miners=1,
+        cooldown_blocked_miners=1,
+    )
+    assert raffle._last_processed_window_end == window_end
+
+
 def test_announce_no_whitelist_eligible_miners_posts_window_message(monkeypatch) -> None:
     class FakeChannel:
         def __init__(self) -> None:
@@ -348,3 +461,45 @@ def test_announce_no_whitelist_eligible_miners_posts_window_message(monkeypatch)
     assert len(channel.messages) == 1
     assert "No eligible miners for the raffle were on the whitelist out of 27 whitelisted addresses" in channel.messages[0]
     assert "52 mines and 18 unique miners" in channel.messages[0]
+
+
+def test_announce_all_eligible_in_cooldown_posts_window_message(monkeypatch) -> None:
+    class FakeChannel:
+        def __init__(self) -> None:
+            self.messages: list[str] = []
+
+        async def send(self, msg: str) -> None:
+            self.messages.append(msg)
+
+    class FakeGuild:
+        def __init__(self, channel: FakeChannel) -> None:
+            self.channel = channel
+
+        def get_channel(self, _channel_id: int):
+            return self.channel
+
+    channel = FakeChannel()
+    guild = FakeGuild(channel)
+    raffle = MineRaffle.__new__(MineRaffle)
+    raffle.bot = SimpleNamespace(get_guild=lambda _guild_id: guild)
+
+    monkeypatch.setattr(
+        "cogs.mine_raffle.get_collection_info",
+        lambda _collection: SimpleNamespace(guild=123, announce_ch=456, emoji=":pick:"),
+    )
+    monkeypatch.setattr("cogs.mine_raffle.discord.TextChannel", FakeChannel)
+    monkeypatch.setattr("cogs.mine_raffle.discord.Thread", FakeChannel)
+
+    window_start = datetime(2026, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
+    window_end = datetime(2026, 1, 1, 2, 0, 0, tzinfo=timezone.utc)
+    asyncio.run(
+        raffle._announce_all_eligible_in_cooldown(
+            window_start=window_start,
+            window_end=window_end,
+            eligible_whitelisted_miners=4,
+            cooldown_blocked_miners=4,
+        )
+    )
+
+    assert len(channel.messages) == 1
+    assert "No raffle winner this round: all 4 eligible whitelisted miner(s) were in the 24-hour winner cooldown window (4 blocked)." in channel.messages[0]

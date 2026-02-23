@@ -14,6 +14,7 @@ from utils.settings import (
     MINE_RAFFLE_ACTION_NAME,
     MINE_RAFFLE_COLLECTION,
     MINE_RAFFLE_LAND_IDS,
+    MINE_RAFFLE_REWARD_COOLDOWN_SECONDS,
 )
 from wax_chain.collection_config import get_collection_info
 from wax_chain.wax_addresses import is_valid_wax_address
@@ -345,6 +346,77 @@ class MineRaffle(MetaCog):
         except (discord.Forbidden, discord.HTTPException):
             pass
 
+    async def _announce_all_eligible_in_cooldown(
+        self,
+        window_start: datetime,
+        window_end: datetime,
+        eligible_whitelisted_miners: int,
+        cooldown_blocked_miners: int,
+    ) -> None:
+        cinfo = get_collection_info(MINE_RAFFLE_COLLECTION)
+        guild = self.bot.get_guild(cinfo.guild)
+        if guild is None:
+            return
+        channel = guild.get_channel(cinfo.announce_ch)
+        if channel is None or not isinstance(channel, (discord.TextChannel, discord.Thread)):
+            return
+
+        window_start_str = window_start.strftime("%Y-%m-%d %H:%M")
+        window_end_str = window_end.strftime("%Y-%m-%d %H:%M")
+        msg = (
+            f"{cinfo.emoji} **Mining Raffle**\n"
+            f"Window: {window_start_str} to {window_end_str} UTC\n"
+            f"No raffle winner this round: all {eligible_whitelisted_miners} eligible whitelisted miner(s) "
+            f"were in the 24-hour winner cooldown window ({cooldown_blocked_miners} blocked).\n"
+            "This helps spread rewards to more miners across the day.\n"
+            "[Click here](<https://www.cryptomonkeys.cc/monkeymining>) for details on how to participate."
+        )
+        try:
+            await channel.send(msg)
+        except (discord.Forbidden, discord.HTTPException):
+            pass
+
+    def _get_global_storage_manager(self) -> Optional[Any]:
+        bot_storage = getattr(self.bot, "storage", None)
+        if not isinstance(bot_storage, dict):
+            return None
+        return bot_storage.get(None)
+
+    async def _get_recently_rewarded_wallets(self, now: datetime) -> set[str]:
+        storage = self._get_global_storage_manager()
+        if storage is None or not hasattr(storage, "get_mine_raffle_wallets_with_recent_rewards"):
+            self.log("Mine raffle reward cooldown check skipped because storage manager is unavailable.", "WARN")
+            return set()
+        try:
+            return await storage.get_mine_raffle_wallets_with_recent_rewards(
+                collection=MINE_RAFFLE_COLLECTION,
+                now=now,
+                window_seconds=MINE_RAFFLE_REWARD_COOLDOWN_SECONDS,
+            )
+        except Exception as e:
+            self.log(
+                f"Mine raffle reward cooldown check failed with {type(e).__name__}::{e}.",
+                "WARN",
+            )
+            return set()
+
+    async def _record_rewarded_wallet(self, wallet: str, rewarded_at: datetime) -> None:
+        storage = self._get_global_storage_manager()
+        if storage is None or not hasattr(storage, "record_mine_raffle_reward"):
+            self.log("Mine raffle winner tracking skipped because storage manager is unavailable.", "WARN")
+            return
+        try:
+            await storage.record_mine_raffle_reward(
+                collection=MINE_RAFFLE_COLLECTION,
+                wallet=wallet,
+                rewarded_at=rewarded_at,
+            )
+        except Exception as e:
+            self.log(
+                f"Mine raffle winner tracking failed with {type(e).__name__}::{e}.",
+                "WARN",
+            )
+
     async def _run_raffle(self) -> None:
         if len(self.land_ids) == 0:
             if not self._disabled_logged:
@@ -387,6 +459,23 @@ class MineRaffle(MetaCog):
             self._last_processed_window_end = window_end
             return
 
+        whitelisted_eligible_count = len(participants)
+        recently_rewarded_wallets = await self._get_recently_rewarded_wallets(datetime.now(timezone.utc))
+        participants = participants.difference(recently_rewarded_wallets)
+        if len(participants) == 0:
+            self.log(
+                f"Mine raffle window {window_start} to {window_end}: "
+                "all eligible miners were removed by the 24-hour winner cooldown."
+            )
+            await self._announce_all_eligible_in_cooldown(
+                window_start=window_start,
+                window_end=window_end,
+                eligible_whitelisted_miners=whitelisted_eligible_count,
+                cooldown_blocked_miners=len(recently_rewarded_wallets.intersection(monkeyconnect_whitelist)),
+            )
+            self._last_processed_window_end = window_end
+            return
+
         winner_wallet = random.choice(sorted(participants))
         winner_discord_ids = sorted(wallet_to_discord_ids.get(winner_wallet, set()))
         selected_assets = await self.bot.wax_con.get_random_assets_to_send(
@@ -400,6 +489,7 @@ class MineRaffle(MetaCog):
             sender_ac=MINE_RAFFLE_COLLECTION,
             memo=f"Mining raffle reward ({window_end.strftime('%Y-%m-%d %H:%M UTC')})",
         )
+        await self._record_rewarded_wallet(winner_wallet, rewarded_at=datetime.now(timezone.utc))
         self.log(f"Mine raffle transferred asset {asset_id} to {winner_wallet} from {len(participants)} entrants.")
         await self._announce_winner(
             winner_wallet=winner_wallet,

@@ -108,6 +108,7 @@ MINE_RAFFLE_INTERVAL_SECONDS = 2 * 60 * 60
 MINE_RAFFLE_ACTION_ACCOUNT = "notify.world"
 MINE_RAFFLE_ACTION_NAME = "logmine"
 MINE_RAFFLE_COLLECTION = "crptomonkeys"
+MINE_RAFFLE_REWARD_COOLDOWN_SECONDS = 24 * 60 * 60
 
 # The people who can drop unlimitted daily cryptomonKeys and have some other cryptomonKey drop related overrides
 CRYPTOMONKEY_DROP_ADMINS = [

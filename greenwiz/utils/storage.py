@@ -1,5 +1,6 @@
 import asyncio
 import random
+from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 from typing import Union, Awaitable, Optional
 
@@ -219,6 +220,40 @@ class StorageManager:
     async def del_note(self, user: discord.User, name: str) -> None:
         """Deletes a note"""
         await self.redis.hdel(f"notes:{user.id}", name)
+
+    @staticmethod
+    def _mine_raffle_winner_key(collection: str) -> str:
+        return f"mine_raffle:winners:{collection.lower().strip()}"
+
+    async def get_mine_raffle_wallets_with_recent_rewards(
+        self,
+        *,
+        collection: str,
+        now: datetime,
+        window_seconds: int,
+    ) -> set[str]:
+        """Return wallets that received a mining raffle reward inside the sliding window."""
+        key = self._mine_raffle_winner_key(collection)
+        now_ts = now.astimezone(timezone.utc).timestamp()
+        cutoff_ts = now_ts - max(window_seconds, 0)
+        await self.redis.zremrangebyscore(key, "-inf", cutoff_ts)
+        wallets = await self.redis.zrangebyscore(key, cutoff_ts, "+inf")
+        return {str(wallet).strip().lower() for wallet in wallets if str(wallet).strip()}
+
+    async def record_mine_raffle_reward(
+        self,
+        *,
+        collection: str,
+        wallet: str,
+        rewarded_at: datetime,
+    ) -> None:
+        """Persist the most recent mining raffle reward timestamp for a wallet."""
+        normalized_wallet = wallet.strip().lower()
+        if normalized_wallet == "":
+            raise InvalidInput("Wallet must not be empty.")
+        key = self._mine_raffle_winner_key(collection)
+        score = rewarded_at.astimezone(timezone.utc).timestamp()
+        await self.redis.zadd(key, {normalized_wallet: score})
 
     @sanitize_name
     async def set_codex(self, name: str, note: str, style: str = "codex") -> str:
