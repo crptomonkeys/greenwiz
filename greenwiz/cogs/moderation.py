@@ -16,11 +16,41 @@ from utils.settings import CM_GUID
 from utils.util import scope
 from utils.cryptomonkey_util import has_nifty
 
+CM_INTRO_CHANNEL_ID = 758054443479597077
+CM_NEW_USER_WARNING = (
+    "Hey, welcome to the server! Your first message looked suspicious, so I've "
+    "deleted it. If you're here to join the community, please introduce yourself "
+    f"in <#{CM_INTRO_CHANNEL_ID}> . I'm watching you ;)"
+)
+CM_NEW_USER_WATCH_MESSAGE_LIMIT = 10
+
 
 async def confirmation_on(user, confirmed_ids):
     await asyncio.sleep(20)
     confirmed_ids[user] = 0
     return
+
+
+def is_link_only_message(content: str) -> bool:
+    cleaned = content.strip()
+    if not cleaned:
+        return False
+
+    return all(
+        re.fullmatch(r"<?(?:https?://|www\.)\S+>?", token) is not None
+        for token in cleaned.split()
+    )
+
+
+def is_new_user_attachment_or_link_message(message: discord.Message) -> bool:
+    return (
+        (len(message.attachments) > 0 and not message.content.strip())
+        or is_link_only_message(message.content)
+    )
+
+
+def has_assigned_roles(member: discord.Member) -> bool:
+    return any(role.id != member.guild.default_role.id for role in member.roles)
 
 
 class Moderation(MetaCog):
@@ -30,6 +60,18 @@ class Moderation(MetaCog):
         super().__init__(bot)
 
     @commands.Cog.listener()
+    async def on_member_join(self, member: discord.Member):
+        if member.guild.id == CM_GUID and not member.bot:
+            await self.storage[member.guild].watch_new_member_messages(member)
+
+    @commands.Cog.listener()
+    async def on_member_update(
+        self, before: discord.Member, after: discord.Member
+    ) -> None:
+        if after.guild.id == CM_GUID and not after.bot and has_assigned_roles(after):
+            await self.storage[after.guild].clear_watched_new_member_messages(after)
+
+    @commands.Cog.listener()
     async def on_message(self, message):
         if not message.guild:
             return
@@ -37,6 +79,31 @@ class Moderation(MetaCog):
             return
         if message.author.bot:
             return
+        if message.guild.id == CM_GUID and not has_assigned_roles(message.author):
+            storage = self.storage[message.guild]
+            if (
+                await storage.get_watched_new_member_message_count(message.author)
+                is not None
+            ):
+                message_count = await storage.increment_watched_new_member_messages(
+                    message.author
+                )
+                try:
+                    if is_new_user_attachment_or_link_message(message):
+                        await message.delete()
+                        await message.channel.send(
+                            f"{message.author.mention} {CM_NEW_USER_WARNING}"
+                        )
+                        self.bot.log(
+                            f"Deleted suspicious early message from {message.author} "
+                            f"({message.author.id}) in {message.guild}.",
+                            "NOTI",
+                        )
+                        return
+                finally:
+                    if message_count >= CM_NEW_USER_WATCH_MESSAGE_LIMIT:
+                        await storage.clear_watched_new_member_messages(message.author)
+
         flag: Union[bool, str] = False
         banned_phrases = [
             "uni-airdrop.org",

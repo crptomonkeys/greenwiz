@@ -203,6 +203,52 @@ class StorageManager:
         """Sets a user's warnings to none."""
         await self.redis.set(f"{self.guild_id}:warnings:{user.id}", "")
 
+    @staticmethod
+    def _new_member_message_watch_key(guild_id: int) -> str:
+        return f"{guild_id}:cache:new_member_message_watch"
+
+    async def watch_new_member_messages(self, user: Union[discord.User, int]) -> None:
+        """Persist a newly joined member for stricter early-message moderation."""
+        if not isinstance(user, int):
+            user = user.id
+        await self.redis.hset(
+            self._new_member_message_watch_key(self.guild_id), str(user), 0
+        )
+
+    async def increment_watched_new_member_messages(
+        self, user: Union[discord.User, int]
+    ) -> int:
+        """Increment and return the message count for a watched new member."""
+        if not isinstance(user, int):
+            user = user.id
+        count = await self.redis.hincrby(
+            self._new_member_message_watch_key(self.guild_id), str(user), 1
+        )
+        return int(count)
+
+    async def get_watched_new_member_message_count(
+        self, user: Union[discord.User, int]
+    ) -> int | None:
+        """Return a watched new member's message count, or None if they are not watched."""
+        if not isinstance(user, int):
+            user = user.id
+        count = await self.redis.hget(
+            self._new_member_message_watch_key(self.guild_id), str(user)
+        )
+        if count is None:
+            return None
+        return int(count)
+
+    async def clear_watched_new_member_messages(
+        self, user: Union[discord.User, int]
+    ) -> None:
+        """Remove a member from stricter early-message moderation."""
+        if not isinstance(user, int):
+            user = user.id
+        await self.redis.hdel(
+            self._new_member_message_watch_key(self.guild_id), str(user)
+        )
+
     @sanitize_name
     async def get_note(self, user: discord.User, name: str) -> str:
         """Retrieves a note"""
